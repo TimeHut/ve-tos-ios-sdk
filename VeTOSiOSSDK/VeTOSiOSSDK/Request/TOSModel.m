@@ -17,10 +17,35 @@
 #import "TOSModel.h"
 #import <VeTOSiOSSDK/TOSUtil.h>
 
+static NSString *TOSRFC1123StringFromDate(NSDate *date) {
+    if (!date) {
+        return nil;
+    }
+    NSString *threadKey = @"com.volcengine.tos.request-date.rfc1123";
+    NSMutableDictionary *threadDictionary = [NSThread currentThread].threadDictionary;
+    NSDateFormatter *formatter = threadDictionary[threadKey];
+    if (!formatter) {
+        formatter = [NSDateFormatter new];
+        formatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
+        formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+        formatter.timeZone = [NSTimeZone timeZoneForSecondsFromGMT:0];
+        formatter.dateFormat = @"EEE, dd MMM yyyy HH:mm:ss 'GMT'";
+        threadDictionary[threadKey] = formatter;
+    }
+    return [formatter stringFromDate:date];
+}
 
 #pragma mark request and output objects
 
 @implementation TOSOwner
+
+- (id)copyWithZone:(NSZone *)zone {
+    TOSOwner *owner = [[[self class] allocWithZone:zone] init];
+    owner.tosID = self.tosID;
+    owner.tosDisplayName = self.tosDisplayName;
+    return owner;
+}
+
 @end
 
 @implementation TOSListedBucket
@@ -112,7 +137,7 @@
     }
     if ([TOSUtil isNotEmptyString:_tosSrcBucket] && [TOSUtil isNotEmptyString:_tosSrcKey]) {
         if ([TOSUtil isNotEmptyString:_tosSrcVersionID]) {
-            [headerParams setObject:[NSString stringWithFormat:@"/%@/%@?versionId%@", _tosSrcBucket, _tosSrcKey, _tosSrcVersionID] forKey:@"x-tos-copy-source"];
+            [headerParams setObject:[NSString stringWithFormat:@"/%@/%@?versionId=%@", _tosSrcBucket, _tosSrcKey, _tosSrcVersionID] forKey:@"x-tos-copy-source"];
         } else {
             [headerParams setObject:[NSString stringWithFormat:@"/%@/%@", _tosSrcBucket, _tosSrcKey] forKey:@"x-tos-copy-source"];
         }
@@ -121,17 +146,15 @@
         [headerParams setObject:_tosCopySourceIfMatch forKey:@"x-tos-copy-source-if-match"];
     }
     if (_tosCopySourceIfModifiedSince) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setObject:[formater stringFromDate:_tosCopySourceIfModifiedSince] forKey:@"x-tos-copy-source-if-modified-since"];
+        [headerParams setObject:TOSRFC1123StringFromDate(_tosCopySourceIfModifiedSince)
+                         forKey:@"x-tos-copy-source-if-modified-since"];
     }
     if (_tosCopySourceIfNoneMatch) {
         [headerParams setObject:_tosCopySourceIfNoneMatch forKey:@"x-tos-copy-source-if-none-match"];
     }
     if (_tosCopySourceIfUnmodifiedSince) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setObject:[formater stringFromDate:_tosCopySourceIfUnmodifiedSince] forKey:@"x-tos-copy-source-if-unmodified-since"];
+        [headerParams setObject:TOSRFC1123StringFromDate(_tosCopySourceIfUnmodifiedSince)
+                         forKey:@"x-tos-copy-source-if-unmodified-since"];
     }
     if (_tosCopySourceSSECAlgorithm) {
         [headerParams setObject:_tosCopySourceSSECAlgorithm forKey:@"x-tos-copy-source-server-side-encryption-customer-algorithm"];
@@ -260,17 +283,15 @@
         [headerParams setValue:_tosIfMatch forKey:@"If-Match"];
     }
     if (_tosIfModifiedSince) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setValue:[formater stringFromDate:_tosIfModifiedSince] forKey:@"If-Modified-Since"];
+        [headerParams setValue:TOSRFC1123StringFromDate(_tosIfModifiedSince)
+                        forKey:@"If-Modified-Since"];
     }
     if (_tosIfNoneMatch) {
         [headerParams setValue:_tosIfNoneMatch forKey:@"If-None-Match"];
     }
     if (_tosIfUnmodifiedSince) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setValue:[formater stringFromDate:_tosIfUnmodifiedSince] forKey:@"If-Unmodified-Since"];
+        [headerParams setValue:TOSRFC1123StringFromDate(_tosIfUnmodifiedSince)
+                        forKey:@"If-Unmodified-Since"];
     }
     if (_tosSSECAlgorithm) {
         [headerParams setValue:_tosSSECAlgorithm forKey:@"x-tos-server-side-encryption-customer-algorithm"];
@@ -302,9 +323,8 @@
         [queryParams setValue:_tosResponseContentType forKey:@"response-content-type"];
     }
     if (_tosResponseExpires) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [queryParams setValue:[formater stringFromDate:_tosResponseExpires] forKey:@"response-expires"];
+        [queryParams setValue:TOSRFC1123StringFromDate(_tosResponseExpires)
+                       forKey:@"response-expires"];
     }
     if (_tosVersionID) {
         [queryParams setValue:_tosVersionID forKey:@"versionId"];
@@ -375,17 +395,15 @@
         [headerParams setValue:_tosIfMatch forKey:@"If-Match"];
     }
     if (_tosIfModifiedSince) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setValue:[formater stringFromDate:_tosIfModifiedSince] forKey:@"If-Modified-Since"];
+        [headerParams setValue:TOSRFC1123StringFromDate(_tosIfModifiedSince)
+                        forKey:@"If-Modified-Since"];
     }
     if (_tosIfNoneMatch) {
         [headerParams setValue:_tosIfNoneMatch forKey:@"If-None-Match"];
     }
     if (_tosIfUnmodifiedSince) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setValue:[formater stringFromDate:_tosIfUnmodifiedSince] forKey:@"If-Unmodified-Since"];
+        [headerParams setValue:TOSRFC1123StringFromDate(_tosIfUnmodifiedSince)
+                        forKey:@"If-Unmodified-Since"];
     }
     if (_tosSSECAlgorithm) {
         [headerParams setValue:_tosSSECAlgorithm forKey:@"x-tos-server-side-encryption-customer-algorithm"];
@@ -576,9 +594,7 @@
         [headerParams setValue:self.tosCacheControl forKey:@"Cache-Control"];
     }
     if (self.tosExpires) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setValue:[formater stringFromDate:self.tosExpires] forKey:@"Expires"];
+        [headerParams setValue:TOSRFC1123StringFromDate(self.tosExpires) forKey:@"Expires"];
     }
     if (self.tosContentDisposition) {
         [headerParams setValue:self.tosContentDisposition forKey:@"Content-Disposition"];
@@ -661,9 +677,7 @@
         [headerParams setValue:self.tosCacheControl forKey:@"Cache-Control"];
     }
     if (self.tosExpires) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setValue:[formater stringFromDate:self.tosExpires] forKey:@"Expires"];
+        [headerParams setValue:TOSRFC1123StringFromDate(self.tosExpires) forKey:@"Expires"];
     }
     if (self.tosContentDisposition) {
         [headerParams setValue:self.tosContentDisposition forKey:@"Content-Disposition"];
@@ -740,9 +754,7 @@
         [headerParams setValue:self.tosCacheControl forKey:@"Cache-Control"];
     }
     if (self.tosExpires) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setValue:[formater stringFromDate:self.tosExpires] forKey:@"Expires"];
+        [headerParams setValue:TOSRFC1123StringFromDate(self.tosExpires) forKey:@"Expires"];
     }
     if (self.tosContentDisposition) {
         [headerParams setValue:self.tosContentDisposition forKey:@"Content-Disposition"];
@@ -893,9 +905,7 @@
         [headerParams setValue:_tosCacheControl forKey:@"Cache-Control"];
     }
     if (_tosExpires) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setValue:[formater stringFromDate:_tosExpires] forKey:@"Expires"];
+        [headerParams setValue:TOSRFC1123StringFromDate(_tosExpires) forKey:@"Expires"];
     }
     if (_tosContentDisposition) {
         [headerParams setValue:_tosContentDisposition forKey:@"Content-Disposition"];
@@ -975,9 +985,7 @@
         [headerParams setValue:_tosCacheControl forKey:@"Cache-Control"];
     }
     if (_tosExpires) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setValue:[formater stringFromDate:_tosExpires] forKey:@"Expires"];
+        [headerParams setValue:TOSRFC1123StringFromDate(_tosExpires) forKey:@"Expires"];
     }
     if (_tosContentDisposition) {
         [headerParams setValue:_tosContentDisposition forKey:@"Content-Disposition"];
@@ -1242,17 +1250,15 @@
         [headerParams setObject:_tosCopySourceIfMatch forKey:@"x-tos-copy-source-if-match"];
     }
     if (_tosCopySourceIfModifiedSince) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setObject:[formater stringFromDate:_tosCopySourceIfModifiedSince] forKey:@"x-tos-copy-source-if-modified-since"];
+        [headerParams setObject:TOSRFC1123StringFromDate(_tosCopySourceIfModifiedSince)
+                         forKey:@"x-tos-copy-source-if-modified-since"];
     }
     if (_tosCopySourceIfNoneMatch) {
         [headerParams setObject:_tosCopySourceIfNoneMatch forKey:@"x-tos-copy-source-if-none-match"];
     }
     if (_tosCopySourceIfUnmodifiedSince) {
-        NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-        [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
-        [headerParams setObject:[formater stringFromDate:_tosCopySourceIfUnmodifiedSince] forKey:@"x-tos-copy-source-if-unmodified-since"];
+        [headerParams setObject:TOSRFC1123StringFromDate(_tosCopySourceIfUnmodifiedSince)
+                         forKey:@"x-tos-copy-source-if-unmodified-since"];
     }
     if (_tosCopySourceRangeStart != 0 ||  _tosCopySourceRangeEnd != 0) {
         [headerParams setObject:[NSString stringWithFormat:@"bytes=%lld-%lld", _tosCopySourceRangeStart, _tosCopySourceRangeEnd] forKey:@"x-tos-copy-source-range"];
@@ -1288,7 +1294,7 @@
         [queryParam setValue:_tosDelimiter forKey:@"delimiter"];
     }
     if (_tosEncodingType) {
-        [queryParam setValue:_tosEncodingType forKey:@"encodint-type"];
+        [queryParam setValue:_tosEncodingType forKey:@"encoding-type"];
     }
     if (_tosMaxUploads >= 0) {
         [queryParam setValue:[NSString stringWithFormat:@"%d", _tosMaxUploads] forKey:@"max-uploads"];
@@ -1400,7 +1406,7 @@
         _tosPartNumber = [coder decodeIntForKey:@"part_number"];
         _tosPartSize = [coder decodeInt64ForKey:@"part_size"];
         _tosOffset = [coder decodeInt64ForKey:@"offset"];
-        _tosETag = [coder decodeObjectForKey:@"etat"];
+        _tosETag = [coder decodeObjectForKey:@"etag"];
         _tosHashCrc64ecma = strtoull([[coder decodeObjectForKey:@"hash_crc64ecma"] UTF8String], NULL, 0);
         _tosIsCompleted = [coder decodeBoolForKey:@"is_completed"];
     }
@@ -1457,6 +1463,84 @@
 @implementation TOSUploadEvent
 @end
 @implementation TOSUploadFileOutput
+@end
+
+@implementation TOSDataTransferStatus
+@end
+
+@implementation TOSUploadFileInputV2
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        self.tosTaskNum = 1;
+        self.tosPartSize = 0;
+        _tosMaxRetryCount = 3;
+    }
+    return self;
+}
+
+- (nonnull id)mutableCopyWithZone:(nullable NSZone *)zone {
+    TOSUploadFileInputV2 *cp = [super mutableCopyWithZone:zone];
+    cp.tosDataTransferListener = self.tosDataTransferListener;
+    cp.tosRateLimiter = self.tosRateLimiter;
+    cp.tosCancelHook = self.tosCancelHook;
+    cp.tosTrafficLimit = self.tosTrafficLimit;
+    cp.tosMaxRetryCount = self.tosMaxRetryCount;
+    cp.tosCallback = self.tosCallback;
+    cp.tosCallbackVar = self.tosCallbackVar;
+    return cp;
+}
+
+@end
+
+@implementation TOSUploadFileOutputV2
+@end
+
+@implementation TOSDownloadPartInfo
+@end
+
+@implementation TOSDownloadEvent
+@end
+
+@implementation TOSDownloadFileInput
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _tosTaskNum = 1;
+        _tosPartSize = 0;
+        _tosMaxRetryCount = 3;
+    }
+    return self;
+}
+
+@end
+
+@implementation TOSDownloadFileOutput
+@end
+
+@implementation TOSCopyPartInfo
+@end
+
+@implementation TOSCopyEvent
+@end
+
+@implementation TOSResumableCopyObjectInput
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _tosTaskNum = 1;
+        _tosPartSize = 0;
+        _tosMaxRetryCount = 3;
+    }
+    return self;
+}
+
+@end
+
+@implementation TOSResumableCopyObjectOutput
 @end
 
 @implementation TOSCustomDomainRule

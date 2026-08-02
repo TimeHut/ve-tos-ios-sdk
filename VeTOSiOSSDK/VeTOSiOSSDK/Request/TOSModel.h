@@ -331,6 +331,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy) NSString *tosVersionID;
 @property (nonatomic, copy) NSString *tosWebsiteRedirectLocation;
 @property (nonatomic, copy) NSString *tosObjectType;
+@property (nonatomic, assign) int64_t tosSymlinkTargetSize;
 @property (nonatomic, assign) uint64_t tosHashCrc64ecma;
 @property (nonatomic, copy) TOSStorageClassType *tosStorageClass;
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *tosMeta;
@@ -921,6 +922,29 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 
+@interface TOSDataTransferStatus : NSObject
+@property (nonatomic, assign) int64_t tosTotalBytes;
+@property (nonatomic, assign) int64_t tosConsumedBytes;
+@property (nonatomic, assign) int64_t tosRWOnceBytes;
+@property (nonatomic, assign) TOSDataTransferType tosType;
+@property (nonatomic, assign) NSInteger tosRetryCount;
+@end
+
+typedef void (^TOSDataTransferListener) (TOSDataTransferStatus *status);
+
+@interface TOSCancelHook : NSObject
+- (void)cancel:(BOOL)isAbort;
+@end
+
+@protocol TOSRateLimiter <NSObject>
+- (BOOL)acquire:(int64_t)want timeToWait:(NSTimeInterval *)timeToWait;
+@end
+
+@interface TOSDefaultRateLimiter : NSObject <TOSRateLimiter>
+- (nullable instancetype)initWithCapacity:(int64_t)capacity rate:(int64_t)rate;
+@end
+
+
 // 实现NSCoding协议
 @interface TOSUploadFileInfo : NSObject <NSCoding>
 @property (nonatomic, copy) NSString *tosLastModified; // 待上传源文件最近更新时间
@@ -986,6 +1010,120 @@ typedef void (^TOSUploadEventListener) (TOSUploadEvent *e);
 @property (nonatomic, copy) NSString *tosVersionID;
 @property (nonatomic, assign) uint64_t tosHashCrc64ecma;
 
+@property (nonatomic, copy) NSString *tosSSECAlgorithm;
+@property (nonatomic, copy) NSString *tosSSECKeyMD5;
+@property (nonatomic, copy) NSString *tosEncodingType;
+@end
+
+
+// 新版断点续传上传/UploadFile V2
+@interface TOSUploadFileInputV2 : TOSUploadFileInput
+@property (nonatomic, copy) TOSDataTransferListener tosDataTransferListener;
+@property (nonatomic, strong) id<TOSRateLimiter> tosRateLimiter;
+@property (nonatomic, strong) TOSCancelHook *tosCancelHook;
+@property (nonatomic, assign) int64_t tosTrafficLimit;
+/// Head、CreateMultipartUpload 等初始化请求及单分片请求的最大重试次数，默认 3；0 表示关闭重试。
+@property (nonatomic, assign) NSInteger tosMaxRetryCount;
+@property (nonatomic, copy) NSString *tosCallback;
+@property (nonatomic, copy) NSString *tosCallbackVar;
+@end
+
+@interface TOSUploadFileOutputV2 : TOSUploadFileOutput
+@property (nonatomic, copy) NSString *tosCallbackResult;
+@end
+
+
+@interface TOSDownloadPartInfo : NSObject
+@property (nonatomic, assign) int tosPartNumber;
+@property (nonatomic, assign) int64_t tosRangeStart;
+@property (nonatomic, assign) int64_t tosRangeEnd;
+@end
+
+@interface TOSDownloadEvent : NSObject
+@property (nonatomic, assign) TOSDownloadEventType tosType;
+@property (nonatomic, strong) NSError *tosErr;
+@property (nonatomic, copy) NSString *tosBucket;
+@property (nonatomic, copy) NSString *tosKey;
+@property (nonatomic, copy) NSString *tosVersionID;
+@property (nonatomic, copy) NSString *tosFilePath;
+@property (nonatomic, copy) NSString *tosCheckpointPath;
+@property (nonatomic, copy) NSString *tosTempFilePath;
+@property (nonatomic, strong) TOSDownloadPartInfo *tosDownloadPartInfo;
+@end
+
+typedef void (^TOSDownloadEventListener) (TOSDownloadEvent *e);
+
+// 断点续传下载/DownloadFile
+@interface TOSDownloadFileInput : TOSHeadObjectInput
+@property (nonatomic, copy) NSString *tosFilePath;
+@property (nonatomic, copy) NSString *tosTempFilePath;
+@property (nonatomic, assign) int64_t tosPartSize;
+@property (nonatomic, assign) int tosTaskNum;
+@property (nonatomic, assign) BOOL tosEnableCheckpoint;
+@property (nonatomic, copy) NSString *tosCheckpointFile;
+@property (nonatomic, copy) TOSDataTransferListener tosDataTransferListener;
+@property (nonatomic, copy) TOSDownloadEventListener tosDownloadEventListener;
+@property (nonatomic, strong) id<TOSRateLimiter> tosRateLimiter;
+@property (nonatomic, strong) TOSCancelHook *tosCancelHook;
+@property (nonatomic, assign) int64_t tosTrafficLimit;
+/// Head、CreateMultipartUpload 等初始化请求及单分片请求的最大重试次数，默认 3；0 表示关闭重试。
+@property (nonatomic, assign) NSInteger tosMaxRetryCount;
+@end
+
+@interface TOSDownloadFileOutput : TOSHeadObjectOutput
+@end
+
+
+@interface TOSCopyPartInfo : NSObject
+@property (nonatomic, assign) int tosPartNumber;
+@property (nonatomic, assign) int64_t tosCopySourceRangeStart;
+@property (nonatomic, assign) int64_t tosCopySourceRangeEnd;
+@property (nonatomic, copy) NSString *tosETag;
+@end
+
+@interface TOSCopyEvent : NSObject
+@property (nonatomic, assign) TOSCopyEventType tosType;
+@property (nonatomic, strong) NSError *tosErr;
+@property (nonatomic, copy) NSString *tosBucket;
+@property (nonatomic, copy) NSString *tosKey;
+@property (nonatomic, copy) NSString *tosUploadID;
+@property (nonatomic, copy) NSString *tosSrcBucket;
+@property (nonatomic, copy) NSString *tosSrcKey;
+@property (nonatomic, copy) NSString *tosSrcVersionID;
+@property (nonatomic, copy) NSString *tosCheckpointPath;
+@property (nonatomic, strong) TOSCopyPartInfo *tosCopyPartInfo;
+@end
+
+typedef void (^TOSCopyEventListener) (TOSCopyEvent *e);
+
+// 断点续传复制/ResumableCopyObject
+@interface TOSResumableCopyObjectInput : TOSCreateMultipartUploadInput
+@property (nonatomic, copy) NSString *tosSrcBucket;
+@property (nonatomic, copy) NSString *tosSrcKey;
+@property (nonatomic, copy) NSString *tosSrcVersionID;
+@property (nonatomic, copy) NSString *tosCopySourceIfMatch;
+@property (nonatomic, strong) NSDate *tosCopySourceIfModifiedSince;
+@property (nonatomic, copy) NSString *tosCopySourceIfNoneMatch;
+@property (nonatomic, strong) NSDate *tosCopySourceIfUnmodifiedSince;
+@property (nonatomic, assign) int64_t tosPartSize;
+@property (nonatomic, assign) int tosTaskNum;
+@property (nonatomic, assign) BOOL tosEnableCheckpoint;
+@property (nonatomic, copy) NSString *tosCheckpointFile;
+@property (nonatomic, assign) int64_t tosTrafficLimit;
+/// Head、CreateMultipartUpload 等初始化请求及单分片请求的最大重试次数，默认 3；0 表示关闭重试。
+@property (nonatomic, assign) NSInteger tosMaxRetryCount;
+@property (nonatomic, copy) TOSCopyEventListener tosCopyEventListener;
+@property (nonatomic, strong) TOSCancelHook *tosCancelHook;
+@end
+
+@interface TOSResumableCopyObjectOutput : TOSOutput
+@property (nonatomic, copy) NSString *tosBucket;
+@property (nonatomic, copy) NSString *tosKey;
+@property (nonatomic, copy) NSString *tosUploadID;
+@property (nonatomic, copy) NSString *tosETag;
+@property (nonatomic, copy) NSString *tosLocation;
+@property (nonatomic, copy) NSString *tosVersionID;
+@property (nonatomic, assign) uint64_t tosHashCrc64ecma;
 @property (nonatomic, copy) NSString *tosSSECAlgorithm;
 @property (nonatomic, copy) NSString *tosSSECKeyMD5;
 @property (nonatomic, copy) NSString *tosEncodingType;

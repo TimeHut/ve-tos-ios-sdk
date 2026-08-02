@@ -21,6 +21,7 @@
 @interface TOSBucketTests : XCTestCase
 {
     TOSClient *_client;
+    NSString *_privateBucket;
 }
 @end
 
@@ -29,6 +30,7 @@
 - (void)setUp {
     // Put setup code here. This method is called before the invocation of each test method in the class.
     [super setUp];
+    _privateBucket = [TOSTestUtil randomBucketNameWithPrefix:TOS_BUCKET testClass:self.class];
     [self initTOSClient];
 }
 
@@ -43,12 +45,13 @@
 
 - (void)tearDown {
     // Put teardown code here. This method is called after the invocation of each test method in the class.
+    [TOSTestUtil cleanBucket:_privateBucket withClient:_client];
     [super tearDown];
 }
 
 // 1. 只包含桶名，创建成功，校验桶元数据
 - (void)testAPI_createBucket01 {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     TOSCreateBucketInput *createInput = [TOSCreateBucketInput new];
     createInput.tosBucket = bucket;
     TOSTask *task = [_client createBucket:createInput];
@@ -62,7 +65,7 @@
     }] waitUntilFinished];
     
     TOSHeadBucketInput *headInput = [TOSHeadBucketInput new];
-    headInput.tosBucket = TOS_BUCKET;
+    headInput.tosBucket = _privateBucket;
     task = [_client headBucket:headInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
         XCTAssertNil(t.error);
@@ -80,7 +83,7 @@
 
 // 2. 包含所有参数创桶，创建成功，校验桶元数据
 - (void)testAPI_createBucket02 {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     TOSCreateBucketInput *createInput = [TOSCreateBucketInput new];
     createInput.tosBucket = bucket;
     createInput.tosACL = TOSACLPublicRead;
@@ -103,7 +106,7 @@
     }] waitUntilFinished];
     
     TOSHeadBucketInput *headInput = [TOSHeadBucketInput new];
-    headInput.tosBucket = TOS_BUCKET;
+    headInput.tosBucket = _privateBucket;
     task = [_client headBucket:headInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
         XCTAssertNil(t.error);
@@ -138,7 +141,7 @@
 
 // 4. 使用错误的桶访问权限/存储类型/桶AZ属性创建桶，返回客户端校验错误，构造正交用例
 - (void)testAPI_createBucket03 {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     
     // 错误的桶访问权限
     TOSCreateBucketInput *createInput01 = [TOSCreateBucketInput new];
@@ -310,7 +313,7 @@
 // 删除已存在的桶，删除成功
 - (void)testAPI_deleteBucket02 {
     // 创建桶
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     TOSCreateBucketInput *createInput = [TOSCreateBucketInput new];
     createInput.tosBucket = bucket;
     createInput.tosACL = TOSACLPublicRead;
@@ -341,7 +344,7 @@
 // 列举桶，校验桶信息
 - (void)testAPI_listBuckets01 {
     // 创建桶
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     TOSCreateBucketInput *createInput = [TOSCreateBucketInput new];
     createInput.tosBucket = bucket;
     createInput.tosACL = TOSACLPublicRead;
@@ -368,7 +371,7 @@
         XCTAssertEqual(200, listOutput.tosStatusCode);
         BOOL hasTargetBucket = NO;
         for (TOSListedBucket *bkt in listOutput.tosBuckets) {
-            if ([bkt.tosName isEqualToString:TOS_BUCKET]) {
+            if ([bkt.tosName isEqualToString:self->_privateBucket]) {
                 hasTargetBucket = YES;
             }
         }
@@ -393,7 +396,7 @@
 
 
 - (void)testAPI_createBucket0000 {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     TOSCreateBucketInput *createInput = [TOSCreateBucketInput new];
     createInput.tosBucket = bucket;
     createInput.tosACL = TOSACLPublicRead;
@@ -429,7 +432,7 @@
 }
 
 - (void)testAPI_headBucket {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
 
     TOSCreateBucketInput *createInput = [TOSCreateBucketInput new];
     createInput.tosBucket = bucket;
@@ -465,7 +468,7 @@
 }
 
 - (void)testAPI_deleteBucket {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     TOSCreateBucketInput *createInput = [TOSCreateBucketInput new];
     createInput.tosBucket = bucket;
     createInput.tosACL = TOSACLPublicRead;
@@ -486,7 +489,7 @@
 }
 
 - (void)testAPI_listMultipartUploads {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     TOSCreateBucketInput *createInput = [TOSCreateBucketInput new];
     createInput.tosBucket = bucket;
     [[_client createBucket:createInput] waitUntilFinished];
@@ -531,7 +534,8 @@
 }
 
 - (void)testAPI_customDomain{
-    NSString *bucket = TOS_BUCKET;
+    XCTSkip(@"桶自定义域名管理需要预先备案域名，默认本机测试环境不具备该外部资源");
+    NSString *bucket = _privateBucket;
     TOSCreateBucketInput *createInput = [TOSCreateBucketInput new];
     createInput.tosBucket = bucket;
     TOSTask *task = [_client createBucket:createInput];
@@ -545,7 +549,7 @@
     }] waitUntilFinished];
     
     TOSHeadBucketInput *headInput = [TOSHeadBucketInput new];
-    headInput.tosBucket = TOS_BUCKET;
+    headInput.tosBucket = _privateBucket;
     task = [_client headBucket:headInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
         XCTAssertNil(t.error);
@@ -561,7 +565,7 @@
     __block NSInteger ruleCount = 0;
     
     TOSPutBucketCustomDomainInput *input = [TOSPutBucketCustomDomainInput new];
-    input.tosBucket = TOS_BUCKET;
+    input.tosBucket = _privateBucket;
     TOSCustomDomainRule *rule = [TOSCustomDomainRule new];
     rule.tosDomain = @"example.ios.sdk.com";
 //    rule.tosCertId = @"id123";
@@ -580,7 +584,7 @@
     }] waitUntilFinished];
     
     TOSListBucketCustomDomainInput *listInput = [TOSListBucketCustomDomainInput new];
-    listInput.tosBucket = TOS_BUCKET;
+    listInput.tosBucket = _privateBucket;
     task = [_client listBucketCustomDomain:listInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
         XCTAssertNil(t.error);
@@ -619,7 +623,7 @@
     }] waitUntilFinished];
     
     TOSDeleteBucketCustomDomainInput *deleteInput = [TOSDeleteBucketCustomDomainInput new];
-    deleteInput.tosBucket = TOS_BUCKET;
+    deleteInput.tosBucket = _privateBucket;
     deleteInput.tosDomain = @"example.ios.sdk.com";
     task = [_client deleteBucketCustomDomain:deleteInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {

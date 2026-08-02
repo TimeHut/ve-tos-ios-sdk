@@ -26,6 +26,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL enableCRC;
 @property (nonatomic, strong, readonly) TOSEndpoint *tosEndpoint;
 @property (nonatomic, strong, readonly) TOSCredential *credential;
+/// 同一个客户端中断点续传上传、下载和复制共享的分片请求并发上限。
+/// 默认为 5，设置值会归一化到 [1, 1000]。
+/// 该配置在创建 TOSClient 时生效；修改配置不会影响已经创建的客户端。
+@property (nonatomic, assign) uint32_t maxConcurrentResumableTransferTaskCount;
 
 - (instancetype)initWithEndpoint:(TOSEndpoint *)endpoint
                       credential:(TOSCredential *)credential;

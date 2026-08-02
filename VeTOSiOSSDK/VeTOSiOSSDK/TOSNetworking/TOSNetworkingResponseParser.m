@@ -16,6 +16,147 @@
 
 #import "TOSNetworkingResponseParser.h"
 
+static NSDateFormatter *TOSResponseDateFormatter(NSString *threadKey, NSString *dateFormat) {
+    NSMutableDictionary *threadDictionary = [NSThread currentThread].threadDictionary;
+    NSDateFormatter *formatter = threadDictionary[threadKey];
+    if (!formatter) {
+        formatter = [NSDateFormatter new];
+        formatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
+        formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+        formatter.timeZone = [NSTimeZone timeZoneForSecondsFromGMT:0];
+        formatter.dateFormat = dateFormat;
+        formatter.lenient = NO;
+        threadDictionary[threadKey] = formatter;
+    }
+    return formatter;
+}
+
+static NSDate *TOSResponseDateFromString(id value,
+                                       NSString *threadKey,
+                                       NSString *dateFormat,
+                                       NSUInteger expectedLength) {
+    if (![value isKindOfClass:[NSString class]]) {
+        return nil;
+    }
+    NSString *string = value;
+    if (string.length != expectedLength) {
+        return nil;
+    }
+    NSDateFormatter *formatter = TOSResponseDateFormatter(threadKey, dateFormat);
+    NSDate *date = [formatter dateFromString:string];
+    if (!date || ![[formatter stringFromDate:date] isEqualToString:string]) {
+        return nil;
+    }
+    return date;
+}
+
+static BOOL TOSParseFixedDigits(const unichar *characters,
+                                NSUInteger offset,
+                                NSUInteger count,
+                                NSInteger *value) {
+    NSInteger parsedValue = 0;
+    for (NSUInteger index = 0; index < count; index++) {
+        unichar character = characters[offset + index];
+        if (character < '0' || character > '9') {
+            return NO;
+        }
+        parsedValue = parsedValue * 10 + character - '0';
+    }
+    *value = parsedValue;
+    return YES;
+}
+
+static BOOL TOSIsGregorianLeapYear(NSInteger year) {
+    return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+}
+
+static NSInteger TOSDaysInGregorianMonth(NSInteger year, NSInteger month) {
+    static const NSInteger daysPerMonth[] = {
+        31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+    };
+    if (month < 1 || month > 12) {
+        return 0;
+    }
+    if (month == 2 && TOSIsGregorianLeapYear(year)) {
+        return 29;
+    }
+    return daysPerMonth[month - 1];
+}
+
+static int64_t TOSDaysFromGregorianCivilDate(NSInteger year,
+                                             NSInteger month,
+                                             NSInteger day) {
+    NSInteger adjustedYear = year - (month <= 2);
+    NSInteger era = adjustedYear / 400;
+    NSInteger yearOfEra = adjustedYear - era * 400;
+    NSInteger adjustedMonth = month + (month > 2 ? -3 : 9);
+    NSInteger dayOfYear = (153 * adjustedMonth + 2) / 5 + day - 1;
+    NSInteger dayOfEra =
+        yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear;
+    return (int64_t)era * 146097 + dayOfEra - 719468;
+}
+
+static NSDate *TOSResponseISO8601Date(id value) {
+    if (![value isKindOfClass:[NSString class]]) {
+        return nil;
+    }
+    NSString *string = value;
+    BOOL hasMilliseconds = string.length == 24;
+    if (!hasMilliseconds && string.length != 20) {
+        return nil;
+    }
+
+    unichar characters[24];
+    [string getCharacters:characters range:NSMakeRange(0, string.length)];
+    if (characters[4] != '-' || characters[7] != '-' ||
+        characters[10] != 'T' || characters[13] != ':' ||
+        characters[16] != ':' ||
+        (hasMilliseconds
+             ? (characters[19] != '.' || characters[23] != 'Z')
+             : characters[19] != 'Z')) {
+        return nil;
+    }
+
+    NSInteger year = 0;
+    NSInteger month = 0;
+    NSInteger day = 0;
+    NSInteger hour = 0;
+    NSInteger minute = 0;
+    NSInteger second = 0;
+    NSInteger millisecond = 0;
+    if (!TOSParseFixedDigits(characters, 0, 4, &year) ||
+        !TOSParseFixedDigits(characters, 5, 2, &month) ||
+        !TOSParseFixedDigits(characters, 8, 2, &day) ||
+        !TOSParseFixedDigits(characters, 11, 2, &hour) ||
+        !TOSParseFixedDigits(characters, 14, 2, &minute) ||
+        !TOSParseFixedDigits(characters, 17, 2, &second) ||
+        (hasMilliseconds &&
+         !TOSParseFixedDigits(characters, 20, 3, &millisecond))) {
+        return nil;
+    }
+
+    if (year < 1 || day < 1 ||
+        day > TOSDaysInGregorianMonth(year, month) ||
+        hour > 23 || minute > 59 || second > 59) {
+        return nil;
+    }
+
+    int64_t days = TOSDaysFromGregorianCivilDate(year, month, day);
+    NSTimeInterval timeInterval =
+        (NSTimeInterval)days * 86400.0 +
+        hour * 3600.0 + minute * 60.0 + second +
+        millisecond / 1000.0;
+    return [NSDate dateWithTimeIntervalSince1970:timeInterval];
+}
+
+static NSDate *TOSResponseHTTPDate(id value) {
+    return TOSResponseDateFromString(
+        value,
+        @"com.volcengine.tos.response-date.rfc1123",
+        @"EEE, dd MMM yyyy HH:mm:ss 'GMT'",
+        29);
+}
+
 @interface TOSNetworkingResponseParser()
 @property(nonatomic, strong) NSLock *lock;
 @end
@@ -110,8 +251,6 @@
     if (self.onReceiveBlock) {
         return nil;
     }
-    NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-    [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
     switch (_operationType) {
         case TOSOperationTypeCreateBucket: {
             // 创建桶
@@ -203,8 +342,6 @@
                     
                     
                     NSMutableArray *contents = [NSMutableArray array];
-//                    NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-//                    [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
                     if (body[@"Contents"] && body[@"Contents"] != [NSNull null]) {
                         for (id item in body[@"Contents"]) {
                             TOSListedObject *object = [TOSListedObject new];
@@ -212,14 +349,14 @@
                             object.tosETag = item[@"ETag"];
                             object.tosStorageClass = item[@"StorageClass"];
                             object.tosSize = [item[@"Size"] longLongValue];
-                            object.tosLastModified = [formater dateFromString:item[@"LastModified"]];
+                            object.tosLastModified = TOSResponseISO8601Date(item[@"LastModified"]);
                             if ([TOSUtil isNotEmptyString:item[@"HashCrc64ecma"]]) {
                                 object.tosHashCrc64ecma = strtoull([item[@"HashCrc64ecma"] UTF8String], NULL, 0);
                             }
                             
                             TOSOwner *o = [TOSOwner new];
-                            o.tosID = body[@"Owner"][@"ID"];
-                            o.tosDisplayName = body[@"Owner"][@"DisplayName"];
+                            o.tosID = item[@"Owner"][@"ID"];
+                            o.tosDisplayName = item[@"Owner"][@"DisplayName"];
                             object.tosOwner = o;
                             [contents addObject:object];
                         }
@@ -250,7 +387,7 @@
                     if ([kk isEqualToString:@"etag"]) {
                         output.tosETag = obj;
                     } else if ([kk isEqualToString:@"last-modified"]) {
-                        output.tosLastModified = [formater dateFromString:obj];
+                        output.tosLastModified = TOSResponseHTTPDate(obj);
                     } else if ([kk isEqualToString:@"x-tos-delete-marker"]) {
                         output.tosDeleteMarker = [obj boolValue];
                     } else if ([kk isEqualToString:@"x-tos-server-side-encryption-customer-algorithm"]) {
@@ -263,6 +400,8 @@
                         output.tosWebsiteRedirectLocation = obj;
                     } else if ([kk isEqualToString:@"x-tos-object-type"]) {
                         output.tosObjectType = obj;
+                    } else if ([kk isEqualToString:@"x-tos-symlink-target-size"]) {
+                        output.tosSymlinkTargetSize = [obj longLongValue];
                     } else if ([kk isEqualToString:@"x-tos-hash-crc64ecma"]) {
                         output.tosHashCrc64ecma = strtoull([obj UTF8String], NULL, 0);
                     } else if ([kk isEqualToString:@"x-tos-storage-class"]) {
@@ -280,7 +419,7 @@
                     } else if ([kk isEqualToString:@"content-language"]) {
                         output.tosContentLanguage = obj;
                     } else if ([kk isEqualToString:@"expires"]) {
-                        output.tosExpires = [formater dateFromString:obj];
+                        output.tosExpires = TOSResponseHTTPDate(obj);
                     } else if ([kk hasPrefix:@"x-tos-meta-"]) {
                         [metaDict setValue:[obj stringByRemovingPercentEncoding] forKey:[kk stringByRemovingPercentEncoding]];
                     } else if ([kk isEqualToString:@"x-tos-expiration"]) {
@@ -305,7 +444,7 @@
                     } else if ([kk isEqualToString:@"etag"]) {
                         output.tosETag = obj;
                     } else if ([kk isEqualToString:@"last-modified"]) {
-                        output.tosLastModified = obj;
+                        output.tosLastModified = TOSResponseHTTPDate(obj);
                     } else if ([kk isEqualToString:@"x-tos-delete-marker"]) {
                         output.tosDeleteMarker = [obj boolValue];
                     } else if ([kk isEqualToString:@"x-tos-server-side-encryption-customer-algorithm"]) {
@@ -335,7 +474,7 @@
                     } else if ([kk isEqualToString:@"content-language"]) {
                         output.tosContentLanguage = obj;
                     } else if ([kk isEqualToString:@"expires"]) {
-                        output.tosExpires = [formater dateFromString:obj];
+                        output.tosExpires = TOSResponseHTTPDate(obj);
                     } else if ([kk hasPrefix:@"x-tos-meta-"]) {
                         [metaDict setValue:[obj stringByRemovingPercentEncoding] forKey:[kk stringByRemovingPercentEncoding]];
                     }
@@ -358,7 +497,7 @@
                     } else if ([kk isEqualToString:@"etag"]) {
                         output.tosETag = obj;
                     } else if ([kk isEqualToString:@"last-modified"]) {
-                        output.tosLastModified = obj;
+                        output.tosLastModified = TOSResponseHTTPDate(obj);
                     } else if ([kk isEqualToString:@"x-tos-delete-marker"]) {
                         output.tosDeleteMarker = [obj boolValue];
                     } else if ([kk isEqualToString:@"x-tos-server-side-encryption-customer-algorithm"]) {
@@ -388,7 +527,7 @@
                     } else if ([kk isEqualToString:@"content-language"]) {
                         output.tosContentLanguage = obj;
                     } else if ([kk isEqualToString:@"expires"]) {
-                        output.tosExpires = [formater dateFromString:obj];
+                        output.tosExpires = TOSResponseHTTPDate(obj);
                     } else if ([kk hasPrefix:@"x-tos-meta-"]) {
                         [metaDict setValue:[obj stringByRemovingPercentEncoding] forKey:[kk stringByRemovingPercentEncoding]];
                     }
@@ -421,6 +560,7 @@
                         id ownerBody = body[@"Owner"];
                         owner.tosID = ownerBody[@"ID"];
                         owner.tosDisplayName = ownerBody[@"DisplayName"];
+                        output.tosOwner = owner;
                     }
                     if (body[@"Grants"] && body[@"Grants"] != [NSNull null]) {
                         NSMutableArray *grants = [NSMutableArray array];
@@ -464,7 +604,7 @@
                 id body = [NSJSONSerialization JSONObjectWithData:_receivedData options:0 error:NULL];
                 if (body) {
                     output.tosETag = body[@"ETag"];
-                    output.tosLastModified = [formater dateFromString:body[@"LastModified"]];
+                    output.tosLastModified = TOSResponseISO8601Date(body[@"LastModified"]);
                 }
             }
             if (![TOSUtil isNotEmptyString:output.tosETag]) {
@@ -565,14 +705,12 @@
                     NSMutableArray *versions = [NSMutableArray array];
                     NSMutableArray *commonPrefixes = [NSMutableArray array];
                     NSMutableArray *deleteMarkers = [NSMutableArray array];
-//                    NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-//                    [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
                     if (body[@"Versions"] && body[@"Versions"] != [NSNull null]) {
                         for (id item in body[@"Versions"]) {
                             TOSListedObjectVersion *v = [TOSListedObjectVersion new];
                             
                             v.tosKey = item[@"Key"];
-                            v.tosLastModified = [formater dateFromString:item[@"LastModified"]];
+                            v.tosLastModified = TOSResponseISO8601Date(item[@"LastModified"]);
                             v.tosETag = item[@"ETag"];
                             v.tosIsLatest = [item[@"IsLatest"] boolValue];
                             v.tosSize = [item[@"Size"] longLongValue];
@@ -593,7 +731,7 @@
                         for (id item in body[@"DeleteMarkers"]){
                             TOSListedDeleteMarker *m = [TOSListedDeleteMarker new];
                             m.tosKey = item[@"Key"];
-                            m.tosLastModified = [formater dateFromString:item[@"LastModified"]];
+                            m.tosLastModified = TOSResponseISO8601Date(item[@"LastModified"]);
                             m.tosIsLatest = [item[@"IsLatest"] boolValue];
                             m.tosVersionID = item[@"VersionId"];
                             
@@ -862,7 +1000,7 @@
                 id body = [NSJSONSerialization JSONObjectWithData:_receivedData options:0 error:NULL];
                 if (body) {
                     output.tosETag = body[@"ETag"];
-                    output.tosLastModified = [formater dateFromString:body[@"LastModified"]];
+                    output.tosLastModified = TOSResponseISO8601Date(body[@"LastModified"]);
                 }
             }
             if (![TOSUtil isNotEmptyString:output.tosETag]) {
@@ -900,11 +1038,11 @@
                             upload.tosKey = uploadItem[@"Key"];
                             upload.tosUploadID = uploadItem[@"UploadId"];
                             upload.tosStorageClass = uploadItem[@"StorageClass"];
-                            upload.tosInitiated = [formater dateFromString:uploadItem[@"Initiated"]];
+                            upload.tosInitiated = TOSResponseISO8601Date(uploadItem[@"Initiated"]);
                             
                             TOSOwner *o = [TOSOwner new];
                             o.tosID = uploadItem[@"Owner"][@"ID"];
-                            o.tosDisplayName = uploadItem[@"Owner"][@"DisaplyName"];
+                            o.tosDisplayName = uploadItem[@"Owner"][@"DisplayName"];
                             upload.tosOwner = o;
                             [uploads addObject:upload];
                         }
@@ -913,7 +1051,7 @@
                     if (body[@"CommonPrefixes"] && body[@"CommonPrefixes"] != [NSNull null]) {
                         for (id prefix in body[@"CommonPrefixes"]) {
                             TOSListedCommonPrefix *p = [TOSListedCommonPrefix new];
-                            p.tosPrefix = prefix;
+                            p.tosPrefix = prefix[@"Prefix"];
                             [commonPrefixes addObject:p];
                         }
                     }
@@ -944,22 +1082,21 @@
                     
                     TOSOwner *o = [TOSOwner new];
                     o.tosID = body[@"Owner"][@"ID"];
-                    o.tosDisplayName = body[@"OWner"][@"DisplayName"];
+                    o.tosDisplayName = body[@"Owner"][@"DisplayName"];
                     output.tosOwner = o;
                     
                     NSMutableArray *parts = [NSMutableArray array];
-                    NSDateFormatter *formater = [[NSDateFormatter alloc] init];
-                    [formater setDateFormat:@"EEE, dd MM yyyy HH:mm:ss 'GMT'"];
                     if (body[@"Parts"] && body[@"Parts"] != [NSNull null]) {
                         for (id partItem in body[@"Parts"]) {
                             TOSUploadedPart *part = [TOSUploadedPart new];
                             part.tosPartNumber = [partItem[@"PartNumber"] intValue];
-                            part.tosLastModified = [formater dateFromString:partItem[@"LastModified"]];
+                            part.tosLastModified = TOSResponseISO8601Date(partItem[@"LastModified"]);
                             part.tosETag = partItem[@"ETag"];
                             part.tosSize = [partItem[@"Size"] longLongValue];
                             [parts addObject:part];
                         }
                     }
+                    output.tosParts = [parts copy];
                 }
             }
             return output;

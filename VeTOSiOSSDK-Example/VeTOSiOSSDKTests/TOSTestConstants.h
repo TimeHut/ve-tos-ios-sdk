@@ -18,16 +18,60 @@
 #ifndef TOSTestConstants_h
 #define TOSTestConstants_h
 
-#define TOS_ACCESSKEY @"AK"
-#define TOS_SECRETKEY @"SK"
-#define TOS_ENDPOINT @"endpoint"
-#define TOS_REGION @"region"
-#define TOS_CALLBACK_URL @"callback-url"
-#define CUSTOM_DOMAIN @"custom-domain"
+#import <Foundation/Foundation.h>
+#include <stdlib.h>
 
-#define TOS_BUCKET @"bucket"
+NS_INLINE NSString * _Nullable TOSTestEnvironmentValue(NSString * _Nonnull name) {
+    const char *value = getenv(name.UTF8String);
+    if (value == NULL || value[0] == '\0') {
+        return nil;
+    }
+    return [NSString stringWithUTF8String:value];
+}
+
+NS_INLINE NSString * _Nonnull TOSTestRequiredEnvironmentValue(NSString * _Nonnull name) {
+    NSString *value = TOSTestEnvironmentValue(name);
+    if (value.length == 0) {
+        [NSException raise:NSInvalidArgumentException
+                    format:@"Missing required test environment variable: %@", name];
+    }
+    return value;
+}
+
+NS_INLINE NSString * _Nonnull TOSTestBucketDomain(NSString * _Nonnull bucket,
+                                                   NSString * _Nonnull endpoint) {
+    BOOL includesScheme = [endpoint hasPrefix:@"https://"] || [endpoint hasPrefix:@"http://"];
+    NSString *normalizedEndpoint = includesScheme ? endpoint : [@"https://" stringByAppendingString:endpoint];
+    NSURLComponents *components = [NSURLComponents componentsWithString:normalizedEndpoint];
+    if (components.host.length == 0) {
+        [NSException raise:NSInvalidArgumentException
+                    format:@"Invalid TOS_ENDPOINT test environment variable: %@", endpoint];
+    }
+
+    NSString *bucketHost = [NSString stringWithFormat:@"%@.%@", bucket, components.host];
+    if (!includesScheme) {
+        return components.port == nil
+            ? bucketHost
+            : [NSString stringWithFormat:@"%@:%@", bucketHost, components.port];
+    }
+
+    NSURLComponents *bucketComponents = [NSURLComponents new];
+    bucketComponents.scheme = components.scheme;
+    bucketComponents.host = bucketHost;
+    bucketComponents.port = components.port;
+    return bucketComponents.string;
+}
+
+#define TOS_ACCESSKEY TOSTestRequiredEnvironmentValue(@"TOS_ACCESS_KEY")
+#define TOS_SECRETKEY TOSTestRequiredEnvironmentValue(@"TOS_SECRET_KEY")
+#define TOS_ENDPOINT TOSTestRequiredEnvironmentValue(@"TOS_ENDPOINT")
+#define TOS_REGION TOSTestRequiredEnvironmentValue(@"TOS_REGION")
+#define TOS_CALLBACK_URL TOSTestEnvironmentValue(@"TOS_CALLBACK_URL")
+#define CUSTOM_DOMAIN TOSTestBucketDomain(TOS_BUCKET, TOS_ENDPOINT)
+
+#define TOS_BUCKET TOSTestRequiredEnvironmentValue(@"TOS_BUCKET")
 #define TOS_FILE @"file"
 
-#define TOS_STREAM_URL @""
+#define TOS_STREAM_URL TOSTestEnvironmentValue(@"TOS_STREAM_URL")
 
 #endif /* TOSTestConstants_h */

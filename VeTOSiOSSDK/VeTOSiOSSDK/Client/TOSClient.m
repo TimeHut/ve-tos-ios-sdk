@@ -18,13 +18,68 @@
 #import <VeTOSiOSSDK/TOSNetworkingResponseParser.h>
 #import <VeTOSiOSSDK/TOSUtil.h>
 #import "TOSURLRequestRetryHandler.h"
+#import "../Transfer/TOSInput+TransferInternal.h"
+#import "../Transfer/TOSUploadFileV2Operation.h"
+#import "../Transfer/TOSDownloadFileOperation.h"
+#import "../Transfer/TOSResumableCopyOperation.h"
+#import "../Transfer/TOSTransferOperation.h"
 #include <libkern/OSAtomic.h>
+#import <objc/runtime.h>
+
+static void *TOSRawTransferHeadersAssociationKey = &TOSRawTransferHeadersAssociationKey;
+
+static NSDictionary<NSString *, NSString *> *TOSRawTransferHeaders(TOSNetworkingRequestDelegate *delegate) {
+    return objc_getAssociatedObject(delegate, TOSRawTransferHeadersAssociationKey);
+}
+
+static void TOSApplyTransferRequestMetadata(TOSInput *input, TOSNetworkingRequestDelegate *delegate) {
+    if (!input.tos_transferCancellation &&
+        input.tos_transferHeaders.count == 0 &&
+        !input.tos_responseValidator &&
+        !input.tos_responseObserver) {
+        return;
+    }
+    if (input.tos_transferHeaders.count > 0) {
+        NSMutableDictionary *headers = delegate.headerParams ? [delegate.headerParams mutableCopy] : [NSMutableDictionary dictionary];
+        [headers addEntriesFromDictionary:input.tos_transferHeaders];
+        delegate.headerParams = headers;
+    }
+    if (input.tos_transferHeaders.count > 0) {
+        objc_setAssociatedObject(delegate,
+                                 TOSRawTransferHeadersAssociationKey,
+                                 input.tos_transferHeaders,
+                                 OBJC_ASSOCIATION_COPY_NONATOMIC);
+    }
+    delegate.tos_transferCancellation = input.tos_transferCancellation;
+    delegate.tos_responseValidator = input.tos_responseValidator;
+    delegate.tos_responseObserver = input.tos_responseObserver;
+}
+
+static BOOL TOSHeaderValueRequiresLiteralHTTPDate(NSString *headerName) {
+    static NSSet<NSString *> *HTTPDateHeaderNames;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        HTTPDateHeaderNames = [NSSet setWithArray:@[
+            @"expires",
+            @"if-modified-since",
+            @"if-unmodified-since",
+            @"x-tos-copy-source-if-modified-since",
+            @"x-tos-copy-source-if-unmodified-since",
+        ]];
+    });
+    return [HTTPDateHeaderNames containsObject:headerName.lowercaseString];
+}
 
 @interface TOSClient()
 
 @property (nonatomic, strong) TOSNetworking *networking;
+@property (nonatomic, strong) TOSTransferConcurrencyController *tos_transferConcurrencyController;
 + (NSError *)cancelError;
 
+@end
+
+@interface TOSClient (UploadFileV2Internal)
+- (TOSTask *)tos_uploadFileV2:(TOSUploadFileInputV2 *)request;
 @end
 
 @implementation TOSClient
@@ -44,6 +99,11 @@ static NSObject *uploadLock;
         
         _clientConfiguration = configuration;
         _clientConfiguration.allowsCellularAccess = YES;
+        NSInteger resumableTransferLimit = _clientConfiguration
+            ? _clientConfiguration.maxConcurrentResumableTransferTaskCount : 5;
+        _tos_transferConcurrencyController =
+            [[TOSTransferConcurrencyController alloc]
+             initWithLimit:resumableTransferLimit];
         
         TOSNetworkingRequestInterceptor *baseInterceptor = [[TOSNetworkingRequestInterceptor alloc] initWithUserAgent:_clientConfiguration.userAgent];
         
@@ -58,6 +118,18 @@ static NSObject *uploadLock;
         _networking = [[TOSNetworking alloc] initWithConfiguration: _clientConfiguration];
     }
     return self;
+}
+
+- (TOSTransferConcurrencyController *)tos_resumableTransferConcurrencyController {
+    @synchronized (self) {
+        if (!_tos_transferConcurrencyController) {
+            NSInteger limit = self.clientConfiguration
+                ? self.clientConfiguration.maxConcurrentResumableTransferTaskCount : 5;
+            _tos_transferConcurrencyController =
+                [[TOSTransferConcurrencyController alloc] initWithLimit:limit];
+        }
+        return _tos_transferConcurrencyController;
+    }
 }
 
 - (TOSTask *)invokeRequest: (TOSNetworkingRequestDelegate *)request HTTPMethod: (TOSHTTPMethodType *)Method OperationType: (TOSOperationType) operationType {
@@ -82,7 +154,11 @@ static NSObject *uploadLock;
                 NSString *val = [request.headerParams objectForKey:key];
 //                [request.internalRequest setValue:val forHTTPHeaderField:key];
                 NSString *parsedKey = [TOSUtil URLEncode:key];
-                NSString *parsedVal = [val stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
+                NSString *parsedVal =
+                    TOSHeaderValueRequiresLiteralHTTPDate(key)
+                        ? val
+                        : [val stringByAddingPercentEncodingWithAllowedCharacters:
+                                   [NSCharacterSet URLQueryAllowedCharacterSet]];
                 [request.internalRequest setValue:parsedVal forHTTPHeaderField:parsedKey];
 //                if ([key hasPrefix:@"x-tos"]) {
 //                    [request.internalRequest setValue:[TOSUtil URLEncode:val] forHTTPHeaderField:[TOSUtil URLEncode:key]];
@@ -90,6 +166,10 @@ static NSObject *uploadLock;
 //                    [request.internalRequest setValue:val forHTTPHeaderField:key];
 //                }
             }
+        }
+        for (NSString *key in TOSRawTransferHeaders(request)) {
+            [request.internalRequest setValue:TOSRawTransferHeaders(request)[key]
+                           forHTTPHeaderField:key];
         }
         
         if (request.body) {
@@ -533,6 +613,7 @@ static NSObject *uploadLock;
     requestDelegate.object = request.tosKey;
     requestDelegate.HTTPMethod = TOSHTTPMethodTypePut;
     requestDelegate.headerParams = [request headerParamsDict];
+    TOSApplyTransferRequestMetadata(request, requestDelegate);
     
     return [self invokeRequest:requestDelegate HTTPMethod:TOSHTTPMethodTypePut OperationType:TOSOperationTypeCopyObject];
 }
@@ -599,6 +680,7 @@ static NSObject *uploadLock;
     requestDelegate.HTTPMethod = TOSHTTPMethodTypeGet;
     requestDelegate.downloadProgress = request.tosDownloadProgress;
     requestDelegate.onRecieveData = request.tosOnReceiveData;
+    TOSApplyTransferRequestMetadata(request, requestDelegate);
     
     return [self invokeRequest:requestDelegate HTTPMethod:TOSHTTPMethodTypeGet OperationType:TOSOperationTypeGetObject];
 }
@@ -668,8 +750,21 @@ static NSObject *uploadLock;
     requestDelegate.headerParams = [request headerParamsDict];
     requestDelegate.queryParams = [request queryParamsDict];
     requestDelegate.HTTPMethod = TOSHTTPMethodTypeHead;
+    TOSApplyTransferRequestMetadata(request, requestDelegate);
     
     return [self invokeRequest:requestDelegate HTTPMethod:TOSHTTPMethodTypeHead OperationType:TOSOperationTypeHeadObject];
+}
+
+- (TOSTask *)downloadFile:(TOSDownloadFileInput *)request {
+    TOSDownloadFileOperation *operation = [[TOSDownloadFileOperation alloc] initWithClient:self request:request];
+    [operation start];
+    return operation.task;
+}
+
+- (TOSTask *)resumableCopyObject:(TOSResumableCopyObjectInput *)request {
+    TOSResumableCopyOperation *operation = [[TOSResumableCopyOperation alloc] initWithClient:self request:request];
+    [operation start];
+    return operation.task;
 }
 
 - (TOSTask *)appendObject:(TOSAppendObjectInput *) request {
@@ -882,6 +977,7 @@ static NSObject *uploadLock;
     requestDelegate.object = request.tosKey;
     requestDelegate.queryParams = [request queryParamsDict];
     requestDelegate.headerParams = [request headerParamsDict];
+    TOSApplyTransferRequestMetadata(request, requestDelegate);
     
     return [self invokeRequest:requestDelegate HTTPMethod:TOSHTTPMethodTypePost OperationType:TOSOperationTypeCreateMultipartUpload];
 }
@@ -905,6 +1001,7 @@ static NSObject *uploadLock;
     requestDelegate.uploadingData = request.tosContent;
     requestDelegate.partNumber = [NSNumber numberWithLong:request.tosPartNumber];
     requestDelegate.uploadProgress = request.tosUploadProgress;
+    TOSApplyTransferRequestMetadata(request, requestDelegate);
     
     return [self invokeRequest:requestDelegate HTTPMethod:TOSHTTPMethodTypePut OperationType:TOSOperationTypeUploadPart];
 }
@@ -950,6 +1047,7 @@ static NSObject *uploadLock;
     requestDelegate.headerParams = [request headerParamsDict];
     requestDelegate.inputStream = request.tosInputStream;
     requestDelegate.partNumber = [NSNumber numberWithLong:request.tosPartNumber];
+    TOSApplyTransferRequestMetadata(request, requestDelegate);
     
     return [self invokeRequest:requestDelegate HTTPMethod:TOSHTTPMethodTypePut OperationType:TOSOperationTypeUploadPartFromStream];
     
@@ -971,6 +1069,7 @@ static NSObject *uploadLock;
     requestDelegate.headerParams = [request headerParamsDict];
     requestDelegate.queryParams = [request queryParamsDict];
     requestDelegate.body = [request requestBody];
+    TOSApplyTransferRequestMetadata(request, requestDelegate);
     
     return [self invokeRequest:requestDelegate HTTPMethod:TOSHTTPMethodTypePost OperationType:TOSOperationTypeCompleteMultipartUpload];
 }
@@ -989,6 +1088,7 @@ static NSObject *uploadLock;
     requestDelegate.bucket = request.tosBucket;
     requestDelegate.object = request.tosKey;
     requestDelegate.queryParams = [request queryParamsDict];
+    TOSApplyTransferRequestMetadata(request, requestDelegate);
     
     return [self invokeRequest:requestDelegate HTTPMethod:TOSHTTPMethodTypeDelete OperationType:TOSOperationTypeAbortMultipartUpload];
 }
@@ -1017,6 +1117,7 @@ static NSObject *uploadLock;
     requestDelegate.queryParams = [request queryParamsDict];
     requestDelegate.headerParams = [request headerParamsDict];
     requestDelegate.partNumber = [NSNumber numberWithLong:request.tosPartNumber];
+    TOSApplyTransferRequestMetadata(request, requestDelegate);
     
     return [self invokeRequest:requestDelegate HTTPMethod:TOSHTTPMethodTypePut OperationType:TOSOperationTypeUploadPartCopy];
 }
@@ -1344,6 +1445,9 @@ static NSObject *uploadLock;
 }
 
 - (TOSTask *)uploadFile:(TOSUploadFileInput *)uploadRequest {
+    if ([uploadRequest isKindOfClass:[TOSUploadFileInputV2 class]]) {
+        return [self tos_uploadFileV2:(TOSUploadFileInputV2 *)uploadRequest];
+    }
     // 拷贝原Request，避免修改用户Request请求（使用用户的回调函数）
     TOSUploadFileInput *request = [uploadRequest mutableCopy];
     
@@ -1467,8 +1571,18 @@ static NSObject *uploadLock;
         return [self postUpload:request checkPoint:checkPoint];
     }];
 }
+
 @end
 
+@implementation TOSClient (UploadFileV2Internal)
+
+- (TOSTask *)tos_uploadFileV2:(TOSUploadFileInputV2 *)request {
+    TOSUploadFileV2Operation *operation = [[TOSUploadFileV2Operation alloc] initWithClient:self request:request];
+    [operation start];
+    return operation.task;
+}
+
+@end
 
 @implementation TOSClient (PresignURL)
 
