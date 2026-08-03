@@ -17,8 +17,10 @@
 #import "TOSClientConfiguration.h"
 #import <UIKit/UIKit.h>
 
-NSString *const TOSiOSSDKVersion = @"2.1.7";
+NSString *const TOSiOSSDKVersion = @"2.1.8";
 static NSString *const TOSConfigurationUnknown = @"Unknown";
+static uint32_t const TOSDefaultMaxConcurrentResumableTransferTaskCount = 5;
+static uint32_t const TOSMaximumConcurrentResumableTransferTaskCount = 1000;
 
 @implementation TOSClientConfiguration
 
@@ -27,8 +29,15 @@ static NSString *const TOSConfigurationUnknown = @"Unknown";
     if (self = [super init]) {
         _tosEndpoint = endpoint;
         _credential = credential;
+        _maxConcurrentResumableTransferTaskCount = TOSDefaultMaxConcurrentResumableTransferTaskCount;
     }
     return self;
+}
+
+- (void)setMaxConcurrentResumableTransferTaskCount:(uint32_t)maxConcurrentResumableTransferTaskCount {
+    _maxConcurrentResumableTransferTaskCount =
+        MIN(TOSMaximumConcurrentResumableTransferTaskCount,
+            MAX((uint32_t)1, maxConcurrentResumableTransferTaskCount));
 }
 
 - (void)withEnableCRC {

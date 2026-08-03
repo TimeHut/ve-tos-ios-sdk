@@ -35,7 +35,8 @@
 
 - (void)setUp {
     // Put setup code here. This method is called before the invocation of each test method in the class.
-    _privateBucket = TOS_BUCKET;
+    [super setUp];
+    _privateBucket = [TOSTestUtil randomBucketNameWithPrefix:TOS_BUCKET testClass:self.class];
     [self initTOSClient];
     [self initTestFiles];
 }
@@ -43,6 +44,7 @@
 - (void)tearDown {
     // Put teardown code here. This method is called after the invocation of each test method in the class.
     [TOSTestUtil cleanBucket:_privateBucket withClient:_client];
+    [super tearDown];
 }
 
 - (void)testExample {
@@ -65,9 +67,8 @@
     TOSClientConfiguration *config = [[TOSClientConfiguration alloc] initWithEndpoint:tosEndpoint credential:credential];
     _client = [[TOSClient alloc] initWithConfiguration:config];
     
-    TOSCreateBucketInput *createPrivateInput = [TOSCreateBucketInput new];
-    createPrivateInput.tosBucket = _privateBucket;
-    [[_client createBucket:createPrivateInput] waitUntilFinished];
+    NSError *error = [TOSTestUtil createBucket:_privateBucket withClient:_client];
+    XCTAssertNil(error, @"Failed to create isolated test bucket %@: %@", _privateBucket, error);
     
 //    TOSCreateBucketInput *createPublicInput = [TOSCreateBucketInput new];
 //    createPublicInput.bucket = _publicBucket;

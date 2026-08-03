@@ -24,6 +24,7 @@
 
 {
     TOSClient *_client;
+    NSString *_privateBucket;
 }
 
 @property (nonatomic, strong) NSURLSession *session;
@@ -34,13 +35,16 @@
 
 - (void)setUp {
     // Put setup code here. This method is called before the invocation of each test method in the class.
+    [super setUp];
+    _privateBucket = [TOSTestUtil randomBucketNameWithPrefix:TOS_BUCKET testClass:self.class];
     [self initTOSClient];
     [self initSession];
 }
 
 - (void)tearDown {
     // Put teardown code here. This method is called after the invocation of each test method in the class.
-    [TOSTestUtil cleanBucket:TOS_BUCKET withClient:_client];
+    [TOSTestUtil cleanBucket:_privateBucket withClient:_client];
+    [super tearDown];
 }
 
 - (void)initTOSClient {
@@ -52,9 +56,8 @@
     TOSClientConfiguration *config = [[TOSClientConfiguration alloc] initWithEndpoint:tosEndpoint credential:credential];
     _client = [[TOSClient alloc] initWithConfiguration:config];
     
-    TOSCreateBucketInput *createPrivateInput = [TOSCreateBucketInput new];
-    createPrivateInput.tosBucket = TOS_BUCKET;
-    [[_client createBucket:createPrivateInput] waitUntilFinished];
+    NSError *error = [TOSTestUtil createBucket:_privateBucket withClient:_client];
+    XCTAssertNil(error, @"Failed to create isolated test bucket %@: %@", _privateBucket, error);
 }
 
 - (void)initSession {
@@ -72,7 +75,7 @@
 - (void)testAPI_preSignGetObject {
     // put file
     TOSPutObjectInput *putInput = [[TOSPutObjectInput alloc] init];
-    putInput.tosBucket = TOS_BUCKET;
+    putInput.tosBucket = _privateBucket;
     putInput.tosKey = TOS_FILE;
     
     NSMutableString *str = [NSMutableString string];
@@ -98,7 +101,7 @@
     XCTAssertNil(task.error);
     
     TOSPreSignedURLInput *input = [TOSPreSignedURLInput new];
-    input.tosBucket = TOS_BUCKET;
+    input.tosBucket = _privateBucket;
     input.tosKey = TOS_FILE;
     input.tosHttpMethod = TOSHTTPMethodTypeGet;
     
@@ -133,7 +136,7 @@
 - (void)testAPI_preSignGetRangeObject {
     // put file
     TOSPutObjectInput *putInput = [[TOSPutObjectInput alloc] init];
-    putInput.tosBucket = TOS_BUCKET;
+    putInput.tosBucket = _privateBucket;
     putInput.tosKey = TOS_FILE;
     
     NSMutableString *str = [NSMutableString string];
@@ -146,7 +149,7 @@
     XCTAssertNil(task.error);
     
     TOSPreSignedURLInput *input = [TOSPreSignedURLInput new];
-    input.tosBucket = TOS_BUCKET;
+    input.tosBucket = _privateBucket;
     input.tosKey = TOS_FILE;
     input.tosHeader = @{@"Range" : @"bytes=1-10"};
     input.tosHttpMethod = TOSHTTPMethodTypeGet;
@@ -181,7 +184,7 @@
 
 - (void)testAPI_preSignPutObjectFromNSData {
     TOSPreSignedURLInput *input = [TOSPreSignedURLInput new];
-    input.tosBucket = TOS_BUCKET;
+    input.tosBucket = _privateBucket;
     input.tosKey = @"pre-sign-put-file-from-data";
     input.tosHttpMethod = TOSHTTPMethodTypePut;
     input.tosHeader = @{@"x-tos-meta-key-1" : @"meta-value-1", @"x-tos-meta-key-2" : @"meta-value-2"};
@@ -235,7 +238,7 @@
 
     
     TOSHeadObjectInput *headInput = [TOSHeadObjectInput new];
-    headInput.tosBucket = TOS_BUCKET;
+    headInput.tosBucket = _privateBucket;
     headInput.tosKey = @"pre-sign-put-file-from-data";
     task = [_client headObject:headInput];
     [task waitUntilFinished];
@@ -248,32 +251,7 @@
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential * __nullable credential))completionHandler
 {
-    if (!challenge) {
-        return;
-    }
-    
-    NSURLSessionAuthChallengeDisposition disposition = NSURLSessionAuthChallengePerformDefaultHandling;
-    NSURLCredential *credential = nil;
-    
-    /*
-     * Gets the host name
-     */
-    
-    NSString * host = [[task.currentRequest allHTTPHeaderFields] objectForKey:@"Host"];
-    if (!host) {
-        host = task.currentRequest.URL.host;
-    }
-    
-    if ([challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
-        NSURLCredential *crediential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
-        if (completionHandler) {
-            completionHandler(NSURLSessionAuthChallengeUseCredential, crediential);
-        }
-    } else {
-        disposition = NSURLSessionAuthChallengePerformDefaultHandling;
-    }
-    // Uses the default evaluation for other challenges.
-    completionHandler(disposition,credential);
+    completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
 }
 
 @end

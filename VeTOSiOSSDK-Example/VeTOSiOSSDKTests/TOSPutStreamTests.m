@@ -36,7 +36,8 @@
 
 - (void)setUp {
     // Put setup code here. This method is called before the invocation of each test method in the class.
-    _privateBucket = TOS_BUCKET;
+    [super setUp];
+    _privateBucket = [TOSTestUtil randomBucketNameWithPrefix:TOS_BUCKET testClass:self.class];
     [self initTOSClient];
     [self initTestFiles];
     
@@ -45,6 +46,7 @@
 - (void)tearDown {
     // Put teardown code here. This method is called after the invocation of each test method in the class.
     [TOSTestUtil cleanBucket:_privateBucket withClient:_client];
+    [super tearDown];
 }
 
 - (void)initTOSClient {
@@ -55,9 +57,8 @@
     TOSClientConfiguration *config = [[TOSClientConfiguration alloc] initWithEndpoint:tosEndpoint credential:credential];
     _client = [[TOSClient alloc] initWithConfiguration:config];
     
-    TOSCreateBucketInput *createPrivateInput = [TOSCreateBucketInput new];
-    createPrivateInput.tosBucket = TOS_BUCKET;
-    [[_client createBucket:createPrivateInput] waitUntilFinished];
+    NSError *error = [TOSTestUtil createBucket:_privateBucket withClient:_client];
+    XCTAssertNil(error, @"Failed to create isolated test bucket %@: %@", _privateBucket, error);
 }
 
 - (void)initTestFiles {
@@ -218,9 +219,14 @@
 
 // http网络流
 - (void)testAPI_InputStreamFromHTTPURL {
+    NSString *streamURL = TOSTestEnvironmentValue(@"TOS_STREAM_URL");
+    if (streamURL.length == 0) {
+        XCTSkip(@"请通过本机环境变量配置 TOS_STREAM_URL");
+    }
+
     // 构建http输入流
     CFStringRef httpMethod = (__bridge CFStringRef)@"GET";
-    CFStringRef urlString = (__bridge CFStringRef)TOS_STREAM_URL;
+    CFStringRef urlString = (__bridge CFStringRef)streamURL;
     CFURLRef url = CFURLCreateWithString(kCFAllocatorDefault, urlString, NULL);
     CFHTTPMessageRef request = CFHTTPMessageCreateRequest(kCFAllocatorDefault, httpMethod, url, kCFHTTPVersion1_1);
     CFReadStreamRef readStream = CFReadStreamCreateForHTTPRequest(kCFAllocatorDefault, request);
@@ -268,7 +274,7 @@
     TOSTask *task = nil;
     // 1. 创建分段上传任务
     TOSCreateMultipartUploadInput *create = [TOSCreateMultipartUploadInput new];
-    create.tosBucket = TOS_BUCKET;
+    create.tosBucket = _privateBucket;
     create.tosKey = [NSString stringWithFormat:@"upload-file-stream"];
     task = [_client createMultipartUpload:create];
     [task waitUntilFinished];
@@ -281,7 +287,7 @@
     // 2. 开始上传
     NSMutableArray *parts = [NSMutableArray array];
     for (NSInteger idx = 1; idx < 3; idx++){
-        NSMutableData *data = [NSMutableData dataWithLength:101 * 1024]; // 101KB
+        NSMutableData *data = [NSMutableData dataWithLength:5 * 1024 * 1024];
         uint8_t *bytes = [data mutableBytes];
         for (NSInteger i = 0; i < data.length; i++) {
             bytes[i] = (uint8_t)(idx);
@@ -351,5 +357,3 @@
 }
 
 @end
-
-

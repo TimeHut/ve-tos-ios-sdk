@@ -21,6 +21,8 @@
 @interface TOSObjectTests : XCTestCase <NSURLSessionDelegate, NSURLSessionDataDelegate>
 {
     TOSClient *_client;
+    TOSClient *_adminClient;
+    TOSClient *_secureClient;
     NSArray<NSNumber *> *_fileSizes;
     NSArray<NSString *> *_fileNames;
     NSString *_privateBucket;
@@ -35,7 +37,7 @@
 - (void)setUp {
     [super setUp];
     
-    _privateBucket = TOS_BUCKET;
+    _privateBucket = [TOSTestUtil randomBucketNameWithPrefix:TOS_BUCKET testClass:self.class];
     
     [self initTOSClient];
     [self initTestFiles];
@@ -44,22 +46,40 @@
 
 - (void)tearDown {
     // Put teardown code here. This method is called after the invocation of each test method in the class.
-    [TOSTestUtil cleanBucket:_privateBucket withClient:_client];
+    [TOSTestUtil cleanBucket:_privateBucket withClient:_adminClient];
+    [super tearDown];
 }
 
 - (void)initTOSClient {
     NSString *accessKey = TOS_ACCESSKEY;
     NSString *secretKey = TOS_SECRETKEY;
     TOSCredential *credential = [[TOSCredential alloc] initWithAccessKey:accessKey secretKey:secretKey];
-//    TOSEndpoint *tosEndpoint = [[TOSEndpoint alloc] initWithURLString:TOS_ENDPOINT withRegion:TOS_REGION];
-    TOSEndpoint *tosEndpoint = [[TOSEndpoint alloc] initWithURLString:CUSTOM_DOMAIN withRegion:TOS_REGION isCustomDomain:YES];
+    TOSEndpoint *adminEndpoint = [[TOSEndpoint alloc] initWithURLString:TOS_ENDPOINT withRegion:TOS_REGION];
+    TOSClientConfiguration *adminConfig = [[TOSClientConfiguration alloc] initWithEndpoint:adminEndpoint
+                                                                                credential:credential];
+    _adminClient = [[TOSClient alloc] initWithConfiguration:adminConfig];
+    NSError *error = [TOSTestUtil createBucket:_privateBucket withClient:_adminClient];
+    XCTAssertNil(error, @"Failed to create isolated test bucket %@: %@", _privateBucket, error);
+
+    NSString *customDomain = TOSTestBucketDomain(_privateBucket, TOS_ENDPOINT);
+    TOSEndpoint *tosEndpoint = [[TOSEndpoint alloc] initWithURLString:customDomain
+                                                          withRegion:TOS_REGION
+                                                      isCustomDomain:YES];
     TOSClientConfiguration *config = [[TOSClientConfiguration alloc] initWithEndpoint:tosEndpoint credential:credential];
     _client = [[TOSClient alloc] initWithConfiguration:config];
-    
-    TOSCreateBucketInput *createPrivateInput = [TOSCreateBucketInput new];
-    createPrivateInput.tosBucket = _privateBucket;
-    [[_client createBucket:createPrivateInput] waitUntilFinished];
-    
+
+    NSString *secureCustomDomain = customDomain;
+    if ([secureCustomDomain hasPrefix:@"http://"]) {
+        secureCustomDomain = [@"https://" stringByAppendingString:[secureCustomDomain substringFromIndex:@"http://".length]];
+    } else if (![secureCustomDomain hasPrefix:@"https://"]) {
+        secureCustomDomain = [@"https://" stringByAppendingString:secureCustomDomain];
+    }
+    TOSEndpoint *secureEndpoint = [[TOSEndpoint alloc] initWithURLString:secureCustomDomain
+                                                             withRegion:TOS_REGION
+                                                         isCustomDomain:YES];
+    TOSClientConfiguration *secureConfig = [[TOSClientConfiguration alloc] initWithEndpoint:secureEndpoint
+                                                                                  credential:credential];
+    _secureClient = [[TOSClient alloc] initWithConfiguration:secureConfig];
 }
 
 
@@ -410,13 +430,16 @@
 }
 
 - (void)testAPI_putObjectCallBack {
+    XCTSkip(@"Callback 依赖外部回调服务，按本机测试约定跳过");
+    NSString *callbackURL = TOS_CALLBACK_URL;
+
     TOSPutObjectInput *putInput = [TOSPutObjectInput new];
     putInput.tosBucket = _privateBucket;
     putInput.tosKey = @"hello";
     putInput.tosContent = [@"hello world." dataUsingEncoding:kCFStringEncodingUTF8];
     
     NSMutableDictionary *dictCallback = [[NSMutableDictionary alloc] init];
-    [dictCallback setValue:TOS_CALLBACK_URL forKey:@"callbackUrl"];
+    [dictCallback setValue:callbackURL forKey:@"callbackUrl"];
     [dictCallback setValue:@"{\"bucket\": ${bucket}, \"object\": ${object}, \"key1\": ${x:key1}}" forKey:@"callbackBody"];
     [dictCallback setValue:@"application/json" forKey:@"callbackBodyType"];
     
@@ -1018,7 +1041,7 @@
     putInput.tosStorageClass = TOSStorageClassStandard;
     
     
-    TOSTask *task = [_client putObject:putInput];
+    TOSTask *task = [_secureClient putObject:putInput];
     [task waitUntilFinished];
     XCTAssertNil(task.error);
     XCTAssertNotNil(task.result);
@@ -1037,7 +1060,7 @@
     headInput.tosSSECKey = [[@"t8e7t9xuyb2hm0747aea3uzxrvla1hm9" dataUsingEncoding:kCFStringEncodingUTF8] base64EncodedStringWithOptions:0];
     headInput.tosSSECKeyMD5 = [TOSUtil base64Md5FromData:[@"t8e7t9xuyb2hm0747aea3uzxrvla1hm9" dataUsingEncoding:kCFStringEncodingUTF8]];
 
-    task = [_client headObject:headInput];
+    task = [_secureClient headObject:headInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
         NSLog(@"%@", t.error);
         XCTAssertNil(t.error);
@@ -1113,7 +1136,7 @@
     putInput.tosStorageClass = TOSStorageClassStandard;
     
     
-    TOSTask *task = [_client putObject:putInput];
+    TOSTask *task = [_secureClient putObject:putInput];
     [task waitUntilFinished];
     XCTAssertNil(task.error);
     XCTAssertNotNil(task.result);
@@ -1144,7 +1167,7 @@
     copyInput.tosCopySourceSSECKeyMD5 = [TOSUtil base64Md5FromData:[@"t8e7t9xuyb2hm0747aea3uzxrvla1hm9" dataUsingEncoding:kCFStringEncodingUTF8]];
 //    copyInput.tosServerSideEncryption = @"AES256";
 
-    task = [_client copyObject:copyInput];
+    task = [_secureClient copyObject:copyInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
         XCTAssertNil(t.error);
         XCTAssertNotNil(t.result);
@@ -1162,7 +1185,7 @@
 //    headInput.tosSSECKey = [[@"t8e7t9xuyb2hm0747aea3uzxrvla1hm9" dataUsingEncoding:kCFStringEncodingUTF8] base64EncodedStringWithOptions:0];
 //    headInput.tosSSECKeyMD5 = [TOSUtil base64Md5FromData:[@"t8e7t9xuyb2hm0747aea3uzxrvla1hm9" dataUsingEncoding:kCFStringEncodingUTF8]];
 
-    task = [_client headObject:headInput];
+    task = [_secureClient headObject:headInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
         XCTAssertNil(t.error);
         XCTAssertNotNil(t.result);
@@ -1474,7 +1497,15 @@
     [task waitUntilFinished];
     XCTAssertNil(task.error);
     
-    NSHTTPURLResponse *resp = [self getObjectWithoutAuthentication:[NSString stringWithFormat:@"https://%@.%@/%@", _privateBucket, TOS_ENDPOINT, _fileNames[0]]];
+    NSString *bucketDomain = TOSTestBucketDomain(_privateBucket, TOS_ENDPOINT);
+    if (![bucketDomain hasPrefix:@"https://"] && ![bucketDomain hasPrefix:@"http://"]) {
+        bucketDomain = [@"https://" stringByAppendingString:bucketDomain];
+    }
+    NSURLComponents *publicObjectComponents = [NSURLComponents componentsWithString:bucketDomain];
+    publicObjectComponents.path = [@"/" stringByAppendingString:_fileNames[0]];
+    NSString *publicObjectURL = publicObjectComponents.URL.absoluteString;
+
+    NSHTTPURLResponse *resp = [self getObjectWithoutAuthentication:publicObjectURL];
     XCTAssertNotNil(resp);
     XCTAssertEqual(403, resp.statusCode);
     
@@ -1487,14 +1518,14 @@
     [task waitUntilFinished];
     XCTAssertNil(task.error);
     
-    resp = [self getObjectWithoutAuthentication:[NSString stringWithFormat:@"https://%@.%@/%@", _privateBucket, TOS_ENDPOINT, _fileNames[0]]];
+    resp = [self getObjectWithoutAuthentication:publicObjectURL];
     XCTAssertNotNil(resp);
     XCTAssertEqual(200, resp.statusCode);
 }
 
 
 - (void)testAPI_appendObjectFromData {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     NSString *object = @"append-object";
 
     TOSDeleteObjectInput *deleteInput = [TOSDeleteObjectInput new];
@@ -1979,7 +2010,7 @@
 }
 
 - (void)testAPI_putObjectWithChinese {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     NSString *object = @"中文测试-ChineseTest";
     
     TOSPutObjectInput *putInput = [TOSPutObjectInput new];
@@ -2004,7 +2035,7 @@
 
 
 - (void)testAPI_deleteMultiObjects {
-    NSString *bucket = TOS_BUCKET;
+    NSString *bucket = _privateBucket;
     NSString *object = @"中文测试-ChineseTest";
     NSMutableArray *objs = [NSMutableArray array];
     for (int i = 0; i < 3; i++) {
@@ -2176,13 +2207,13 @@
         return nil;
     }] waitUntilFinished];
     
-    // saveas -- object: output.jpg  bucket: ios-sdk-test-saveas
+    // saveas -- object: output.jpg  bucket: isolated bucket
     TOSGetObjectInput *getInput = [TOSGetObjectInput new];
     getInput.tosBucket = _privateBucket;
     getInput.tosKey = key;
     getInput.tosProcess = @"video/snapshot,t_1000";
     getInput.tosProcessSaveAsObject = @"output.jpg";
-    getInput.tosProcessSaveAsBucket = @"ios-sdk-test-saveas";
+    getInput.tosProcessSaveAsBucket = _privateBucket;
     task = [_client getObject:getInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
         XCTAssertNil(t.error);
@@ -2197,7 +2228,7 @@
     }] waitUntilFinished];
     
     TOSHeadObjectInput *headInput = [TOSHeadObjectInput new];
-    headInput.tosBucket = @"ios-sdk-test-saveas";
+    headInput.tosBucket = _privateBucket;
     headInput.tosKey = @"output.jpg";
     task = [_client headObject:headInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
@@ -2308,13 +2339,13 @@
         return nil;
     }] waitUntilFinished];
     
-    // saveas -- object: output.jpg  bucket: ios-sdk-test-saveas
+    // saveas -- object: output.jpg  bucket: isolated bucket
     TOSGetObjectInput *getInput = [TOSGetObjectInput new];
     getInput.tosBucket = _privateBucket;
     getInput.tosKey = key;
     getInput.tosProcess = @"image/resize,w_200";
     getInput.tosProcessSaveAsObject = @"output.jpg";
-    getInput.tosProcessSaveAsBucket = @"ios-sdk-test-saveas";
+    getInput.tosProcessSaveAsBucket = _privateBucket;
     task = [_client getObject:getInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
         XCTAssertNil(t.error);
@@ -2329,7 +2360,7 @@
     }] waitUntilFinished];
     
     TOSHeadObjectInput *headInput = [TOSHeadObjectInput new];
-    headInput.tosBucket = @"ios-sdk-test-saveas";
+    headInput.tosBucket = _privateBucket;
     headInput.tosKey = @"output.jpg";
     task = [_client headObject:headInput];
     [[task continueWithBlock:^id _Nullable(TOSTask * _Nonnull t) {
@@ -2374,51 +2405,26 @@
     NSMutableURLRequest *getRequest = [[NSMutableURLRequest alloc] init];
     [getRequest setHTTPMethod:@"GET"];
     [getRequest setURL:[NSURL URLWithString:httpURL]];
-    __block NSData *retData = nil;
     __block NSHTTPURLResponse *retResponse = nil;
+    __block NSError *requestError = nil;
     
-    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
-    
+    XCTestExpectation *requestFinished = [self expectationWithDescription:@"Unauthenticated object request"];
     [[_session dataTaskWithRequest:getRequest completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-        if (!error) {
-            retData = data;
-            retResponse = (NSHTTPURLResponse *)response;
-            dispatch_semaphore_signal(semaphore);
-        }
+        (void)data;
+        requestError = error;
+        retResponse = (NSHTTPURLResponse *)response;
+        [requestFinished fulfill];
     }] resume];
-    dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+    XCTWaiterResult result = [XCTWaiter waitForExpectations:@[requestFinished] timeout:30.0];
+    XCTAssertEqual(result, XCTWaiterResultCompleted);
+    XCTAssertNil(requestError);
     return retResponse;
 }
 
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential * __nullable credential))completionHandler
 {
-    if (!challenge) {
-        return;
-    }
-    
-    NSURLSessionAuthChallengeDisposition disposition = NSURLSessionAuthChallengePerformDefaultHandling;
-    NSURLCredential *credential = nil;
-    
-    /*
-     * Gets the host name
-     */
-    
-    NSString * host = [[task.currentRequest allHTTPHeaderFields] objectForKey:@"Host"];
-    if (!host) {
-        host = task.currentRequest.URL.host;
-    }
-    
-    if ([challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
-        NSURLCredential *crediential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
-        if (completionHandler) {
-            completionHandler(NSURLSessionAuthChallengeUseCredential, crediential);
-        }
-    } else {
-        disposition = NSURLSessionAuthChallengePerformDefaultHandling;
-    }
-    // Uses the default evaluation for other challenges.
-    completionHandler(disposition,credential);
+    completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
 }
 
 @end

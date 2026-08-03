@@ -35,6 +35,8 @@ typedef NSString TOSCannedType;
 typedef NSString TOSHTTPMethodType;
 typedef int TOSUploadEventType;
 typedef int TOSDownloadEventType;
+typedef int TOSCopyEventType;
+typedef int TOSDataTransferType;
 typedef NSString TOSCertStatusType;
 typedef NSString AuthProtocolType;
 
@@ -94,6 +96,19 @@ extern TOSDownloadEventType const TOSDownloadEventDownloadPartFailed;
 extern TOSDownloadEventType const TOSDownloadEventDownloadPartAborted;
 extern TOSDownloadEventType const TOSDownloadEventRenameTempFileSucceed;
 extern TOSDownloadEventType const TOSDownloadEventRenameTempFileFailed;
+
+extern TOSCopyEventType const TOSCopyEventCreateMultipartUploadSucceed;
+extern TOSCopyEventType const TOSCopyEventCreateMultipartUploadFailed;
+extern TOSCopyEventType const TOSCopyEventUploadPartCopySucceed;
+extern TOSCopyEventType const TOSCopyEventUploadPartCopyFailed;
+extern TOSCopyEventType const TOSCopyEventUploadPartCopyAborted;
+extern TOSCopyEventType const TOSCopyEventCompleteMultipartUploadSucceed;
+extern TOSCopyEventType const TOSCopyEventCompleteMultipartUploadFailed;
+
+extern TOSDataTransferType const TOSDataTransferStarted;
+extern TOSDataTransferType const TOSDataTransferRW;
+extern TOSDataTransferType const TOSDataTransferSucceed;
+extern TOSDataTransferType const TOSDataTransferFailed;
 
 extern NSString * const TOSHTTPQueryProcess;
 extern NSString * const TOSProcessSaveAsObject;

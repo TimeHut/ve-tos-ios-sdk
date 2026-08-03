@@ -25,6 +25,7 @@
 {
     TOSClient *_client;
     NSString *_filePath;
+    NSString *_privateBucket;
 }
 
 @end
@@ -33,6 +34,8 @@
 
 - (void)setUp {
     // Put setup code here. This method is called before the invocation of each test method in the class.
+    [super setUp];
+    _privateBucket = [TOSTestUtil randomBucketNameWithPrefix:TOS_BUCKET testClass:self.class];
     [self initTOSClient];
     [self initTestFile];
 }
@@ -40,7 +43,8 @@
 - (void)tearDown {
     // Put teardown code here. This method is called after the invocation of each test method in the class.
     [self clearTestFile];
-    [TOSTestUtil cleanBucket:TOS_BUCKET withClient:_client];
+    [TOSTestUtil cleanBucket:_privateBucket withClient:_client];
+    [super tearDown];
 }
 
 - (void)initTOSClient {
@@ -51,9 +55,8 @@
     TOSClientConfiguration *config = [[TOSClientConfiguration alloc] initWithEndpoint:tosEndpoint credential:credential];
     _client = [[TOSClient alloc] initWithConfiguration:config];
     
-    TOSCreateBucketInput *createPrivateInput = [TOSCreateBucketInput new];
-    createPrivateInput.tosBucket = TOS_BUCKET;
-    [[_client createBucket:createPrivateInput] waitUntilFinished];
+    NSError *error = [TOSTestUtil createBucket:_privateBucket withClient:_client];
+    XCTAssertNil(error, @"Failed to create isolated test bucket %@: %@", _privateBucket, error);
 }
 
 - (void)initTestFile {
@@ -104,8 +107,8 @@
     TOSTask *task = nil;
     // 1. 创建分段上传任务
     TOSCreateMultipartUploadInput *createInput = [TOSCreateMultipartUploadInput new];
-//    create.bucket = TOS_BUCKET;
-    createInput.tosBucket = TOS_BUCKET;
+//    create.bucket = _privateBucket;
+    createInput.tosBucket = _privateBucket;
     createInput.tosKey = [NSString stringWithFormat:@"copy-src-file"];
     task = [_client createMultipartUpload:createInput];
     [task waitUntilFinished];
@@ -182,7 +185,7 @@
     TOSTask *task = nil;
     // 1. 创建分段上传任务
     TOSCreateMultipartUploadInput *create = [TOSCreateMultipartUploadInput new];
-    create.tosBucket = TOS_BUCKET;
+    create.tosBucket = _privateBucket;
     create.tosKey = [NSString stringWithFormat:@"upload-file"];
     task = [_client createMultipartUpload:create];
     [task waitUntilFinished];
@@ -261,7 +264,7 @@
 
 - (void)testAPI_uploadPartCopy {
     TOSPutObjectInput *putInput = [TOSPutObjectInput new];
-    putInput.tosBucket = TOS_BUCKET;
+    putInput.tosBucket = _privateBucket;
     putInput.tosKey = @"src-file";
     NSMutableData *basePart = [NSMutableData dataWithCapacity:1024];
     for (int j = 0; j < 1024/4; j++) {
@@ -276,7 +279,7 @@
     
     // 1. CreateMultipartUpload
     TOSCreateMultipartUploadInput *createInput = [TOSCreateMultipartUploadInput new];
-    createInput.tosBucket = TOS_BUCKET;
+    createInput.tosBucket = _privateBucket;
     createInput.tosKey = @"dst-file";
     task = [_client createMultipartUpload:createInput];
     [task waitUntilFinished];
@@ -287,9 +290,9 @@
     
     // 2. uploadPartCopy
     TOSUploadPartCopyInput *partInput = [TOSUploadPartCopyInput new];
-    partInput.tosBucket = TOS_BUCKET;
+    partInput.tosBucket = _privateBucket;
     partInput.tosKey = @"dst-file";
-    partInput.tosSrcBucket = TOS_BUCKET;
+    partInput.tosSrcBucket = _privateBucket;
     partInput.tosSrcKey = @"src-file";
     partInput.tosUploadID = createOutput.tosUploadID;
     partInput.tosPartNumber = 1;
@@ -304,7 +307,7 @@
     
     // 3. completeMultipartUpload
     TOSCompleteMultipartUploadInput *completeInput = [TOSCompleteMultipartUploadInput new];
-    completeInput.tosBucket = TOS_BUCKET;
+    completeInput.tosBucket = _privateBucket;
     completeInput.tosKey = @"dst-file";
     completeInput.tosUploadID = createOutput.tosUploadID;
     
@@ -326,7 +329,7 @@
     
     // 4. headObject
     TOSHeadObjectInput *headInput = [TOSHeadObjectInput new];
-    headInput.tosBucket = TOS_BUCKET;
+    headInput.tosBucket = _privateBucket;
     headInput.tosKey = @"dst-file";
     task = [_client headObject:headInput];
     [task waitUntilFinished];
@@ -342,7 +345,7 @@
     TOSTask *task = nil;
     // 1. 创建分段上传任务
     TOSCreateMultipartUploadInput *createInput = [TOSCreateMultipartUploadInput new];
-    createInput.tosBucket = TOS_BUCKET;
+    createInput.tosBucket = _privateBucket;
     createInput.tosKey = [NSString stringWithFormat:@"test-file"];
     task = [_client createMultipartUpload:createInput];
     [task waitUntilFinished];
@@ -392,12 +395,28 @@
     XCTAssertNotNil(task.result);
     TOSListPartsOutput *listOutput = task.result;
     XCTAssertLessThanOrEqual(200, listOutput.tosStatusCode);
-    
-    for (TOSUploadedPart *p in listOutput.tosParts) {
-        NSLog(@"partNumber: %d", p.tosPartNumber);
-        NSLog(@"size: %lld", p.tosSize);
-        NSLog(@"etat: %@", p.tosETag);
+
+    XCTAssertNotNil(listOutput.tosParts);
+    XCTAssertEqual(partSize, listOutput.tosParts.count);
+    NSMutableIndexSet *seenPartNumbers = [NSMutableIndexSet indexSet];
+    NSUInteger expectedPartLength = [NSData dataWithContentsOfFile:_filePath].length;
+    for (TOSUploadedPart *listedPart in listOutput.tosParts) {
+        XCTAssertGreaterThanOrEqual(listedPart.tosPartNumber, 1);
+        XCTAssertLessThanOrEqual(listedPart.tosPartNumber, partSize);
+        if (listedPart.tosPartNumber < 1 || listedPart.tosPartNumber > partSize) {
+            continue;
+        }
+
+        XCTAssertFalse([seenPartNumbers containsIndex:listedPart.tosPartNumber]);
+        [seenPartNumbers addIndex:listedPart.tosPartNumber];
+        XCTAssertEqual(expectedPartLength, listedPart.tosSize);
+
+        TOSUploadPartOutput *uploadedPart = parts[listedPart.tosPartNumber - 1];
+        NSString *listedETag =
+            [listedPart.tosETag stringByReplacingOccurrencesOfString:@"\"" withString:@""];
+        XCTAssertEqualObjects(uploadedPart.tosETag, listedETag);
     }
+    XCTAssertEqual(partSize, seenPartNumbers.count);
     
     TOSAbortMultipartUploadInput *abortInput = [TOSAbortMultipartUploadInput new];
     abortInput.tosBucket = createOutput.tosBucket;
@@ -416,7 +435,7 @@
     TOSTask *task = nil;
     for (int i = 1; i <= 100; i++) {
         TOSCreateMultipartUploadInput *createInput = [TOSCreateMultipartUploadInput new];
-        createInput.tosBucket = TOS_BUCKET;
+        createInput.tosBucket = _privateBucket;
         createInput.tosKey = [NSString stringWithFormat:@"multipart-file-%d", i];
 
         task = [_client createMultipartUpload:createInput];
@@ -433,7 +452,7 @@
     TOSListMultipartUploadsOutput *listOutput = nil;
     do {
         listInput = [TOSListMultipartUploadsInput new];
-        listInput.tosBucket = TOS_BUCKET;
+        listInput.tosBucket = _privateBucket;
         listInput.tosMaxUploads = 10;
         listInput.tosKeyMarker = listOutput.tosNextKeyMarker;
                 
@@ -451,7 +470,7 @@
         TOSListedUpload *up = (TOSListedUpload *)upload;
         TOSAbortMultipartUploadInput *abortInput = [TOSAbortMultipartUploadInput new];
         abortInput.tosKey = up.tosKey;
-        abortInput.tosBucket = TOS_BUCKET;
+        abortInput.tosBucket = _privateBucket;
         abortInput.tosUploadID = up.tosUploadID;
         task = [_client abortMultipartUpload:abortInput];
         [task waitUntilFinished];
@@ -464,7 +483,7 @@
     
     // 4. 验证分段已删除完成
     listInput = [TOSListMultipartUploadsInput new];
-    listInput.tosBucket = TOS_BUCKET;
+    listInput.tosBucket = _privateBucket;
     listInput.tosMaxUploads = 1000;
     task = [_client listMultipartUploads:listInput];
     [task waitUntilFinished];
@@ -475,7 +494,7 @@
 
 - (void)testAPI_multipartUploadToNonexistentObject {
     TOSUploadPartInput *uploadInput = [TOSUploadPartInput new];
-    uploadInput.tosBucket = TOS_BUCKET;
+    uploadInput.tosBucket = _privateBucket;
     uploadInput.tosKey = @"non-exist-object";
     uploadInput.tosUploadID = [NSString stringWithFormat:@"non-exist-upload-id-%d", arc4random()];
     
@@ -496,10 +515,13 @@
 }
 
 - (void)testAPI_multipartUploadsCallback {
+    XCTSkip(@"Callback 依赖外部回调服务，按本机测试约定跳过");
+    NSString *callbackURL = TOS_CALLBACK_URL;
+
     TOSTask *task = nil;
     // 1. 创建分段上传任务
     TOSCreateMultipartUploadInput *createInput = [TOSCreateMultipartUploadInput new];
-    createInput.tosBucket = TOS_BUCKET;
+    createInput.tosBucket = _privateBucket;
     createInput.tosKey = [NSString stringWithFormat:@"multipart-callback"];
     task = [_client createMultipartUpload:createInput];
     [task waitUntilFinished];
@@ -546,7 +568,7 @@
     complete.tosUploadID = createOutput.tosUploadID;
     
     NSMutableDictionary *dictCallback = [[NSMutableDictionary alloc] init];
-    [dictCallback setValue:TOS_CALLBACK_URL forKey:@"callbackUrl"];
+    [dictCallback setValue:callbackURL forKey:@"callbackUrl"];
     [dictCallback setValue:@"{\"bucket\": ${bucket}, \"object\": ${object}, \"key1\": ${x:key1}}" forKey:@"callbackBody"];
     [dictCallback setValue:@"application/json" forKey:@"callbackBodyType"];
     

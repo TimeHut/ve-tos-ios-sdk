@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A71300000000000000000002 /* TOSTransferModelTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000001 /* TOSTransferModelTests.m */; };
+		A71300000000000000000004 /* TOSTransferCoreTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000003 /* TOSTransferCoreTests.m */; };
+		A71300000000000000000006 /* TOSUploadFileV2Tests.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000005 /* TOSUploadFileV2Tests.m */; };
+		A71300000000000000000008 /* TOSDownloadFileTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000007 /* TOSDownloadFileTests.m */; };
+		A7130000000000000000000A /* TOSResumableCopyTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000009 /* TOSResumableCopyTests.m */; };
+		A7130000000000000000000C /* TOSTransferLiveTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A7130000000000000000000B /* TOSTransferLiveTests.m */; };
 		2B18A48B28BFCAC8009DC909 /* image.png in Resources */ = {isa = PBXBuildFile; fileRef = 2B18A48A28BFCAC8009DC909 /* image.png */; };
 		2B27064629271BF400275903 /* TOSUploadFileTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B27064529271BF400275903 /* TOSUploadFileTests.m */; };
 		2B52524828ABC9FC00FC1B99 /* TOSObjectTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B52524728ABC9FC00FC1B99 /* TOSObjectTests.m */; };
@@ -27,11 +33,28 @@
 		2BAF44D528AB99FB009CF7BF /* TOSTestUtil.m in Sources */ = {isa = PBXBuildFile; fileRef = 2BAF44D428AB99FB009CF7BF /* TOSTestUtil.m */; };
 		2BAF754B2A47496000E297C4 /* file.zero in Resources */ = {isa = PBXBuildFile; fileRef = 2BAF754A2A47496000E297C4 /* file.zero */; };
 		2BCDE35D2C7EFD19007AEDBD /* TOSPutStreamTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 2BCDE35C2C7EFD19007AEDBD /* TOSPutStreamTests.m */; };
-		2BCDE35F2C7F00D5007AEDBD /* VeTOSiOSSDK.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BCDE35E2C7F00D5007AEDBD /* VeTOSiOSSDK.framework */; };
-		2BCDE3602C7F00D5007AEDBD /* VeTOSiOSSDK.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2BCDE35E2C7F00D5007AEDBD /* VeTOSiOSSDK.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		2BCDE35F2C7F00D5007AEDBD /* VeTOSiOSSDK.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A72400000000000000000006 /* VeTOSiOSSDK.framework */; };
+		2BCDE3602C7F00D5007AEDBD /* VeTOSiOSSDK.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A72400000000000000000006 /* VeTOSiOSSDK.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A10000000000000000000001 /* TOSURLProtocolStub.m in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* TOSURLProtocolStub.m */; };
+		A10000000000000000000002 /* TOSClientProtocolRegressionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* TOSClientProtocolRegressionTests.m */; };
+		C10000000000000000000001 /* TOSNetworkingChallengeTests.m in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000011 /* TOSNetworkingChallengeTests.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		A72400000000000000000001 /* SDK target proxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A72400000000000000000003 /* VeTOSiOSSDK.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 2BA05AA1287D1EE600C470CA;
+			remoteInfo = VeTOSiOSSDK;
+		};
+		A72400000000000000000002 /* SDK product proxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A72400000000000000000003 /* VeTOSiOSSDK.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 2BA05AA2287D1EE600C470CA;
+			remoteInfo = VeTOSiOSSDK;
+		};
 		2BA05A7C287D1EB600C470CA /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2BA05A58287D1EB400C470CA /* Project object */;
@@ -70,6 +93,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A71300000000000000000001 /* TOSTransferModelTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSTransferModelTests.m; sourceTree = "<group>"; };
+		A71300000000000000000003 /* TOSTransferCoreTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSTransferCoreTests.m; sourceTree = "<group>"; };
+		A71300000000000000000005 /* TOSUploadFileV2Tests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSUploadFileV2Tests.m; sourceTree = "<group>"; };
+		A71300000000000000000007 /* TOSDownloadFileTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSDownloadFileTests.m; sourceTree = "<group>"; };
+		A71300000000000000000009 /* TOSResumableCopyTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSResumableCopyTests.m; sourceTree = "<group>"; };
+		A7130000000000000000000B /* TOSTransferLiveTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSTransferLiveTests.m; sourceTree = "<group>"; };
 		2B18A48A28BFCAC8009DC909 /* image.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = image.png; sourceTree = "<group>"; };
 		2B27064529271BF400275903 /* TOSUploadFileTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSUploadFileTests.m; sourceTree = "<group>"; };
 		2B52524628ABC83600FC1B99 /* TOSTestConstants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TOSTestConstants.h; sourceTree = "<group>"; };
@@ -100,7 +129,11 @@
 		2BAF44D428AB99FB009CF7BF /* TOSTestUtil.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSTestUtil.m; sourceTree = "<group>"; };
 		2BAF754A2A47496000E297C4 /* file.zero */ = {isa = PBXFileReference; lastKnownFileType = text; path = file.zero; sourceTree = "<group>"; };
 		2BCDE35C2C7EFD19007AEDBD /* TOSPutStreamTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSPutStreamTests.m; sourceTree = "<group>"; };
-		2BCDE35E2C7F00D5007AEDBD /* VeTOSiOSSDK.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = VeTOSiOSSDK.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A72400000000000000000003 /* VeTOSiOSSDK.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = VeTOSiOSSDK.xcodeproj; path = ../VeTOSiOSSDK/VeTOSiOSSDK.xcodeproj; sourceTree = "<group>"; };
+		A10000000000000000000011 /* TOSURLProtocolStub.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TOSURLProtocolStub.h; sourceTree = "<group>"; };
+		A10000000000000000000012 /* TOSURLProtocolStub.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSURLProtocolStub.m; sourceTree = "<group>"; };
+		A10000000000000000000013 /* TOSClientProtocolRegressionTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSClientProtocolRegressionTests.m; sourceTree = "<group>"; };
+		C10000000000000000000011 /* TOSNetworkingChallengeTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSNetworkingChallengeTests.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -152,6 +185,7 @@
 			children = (
 				2BA05A62287D1EB400C470CA /* VeTOSiOSSDK-Example */,
 				2BAF44C728AB969B009CF7BF /* VeTOSiOSSDKTests */,
+				A72400000000000000000003 /* VeTOSiOSSDK.xcodeproj */,
 				2BA05A61287D1EB400C470CA /* Products */,
 				2BA05B0B287D242C00C470CA /* Frameworks */,
 			);
@@ -190,14 +224,31 @@
 		2BA05B0B287D242C00C470CA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				2BCDE35E2C7F00D5007AEDBD /* VeTOSiOSSDK.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A72400000000000000000004 /* SDK Products */ = {
+			isa = PBXGroup;
+			children = (
+				A72400000000000000000006 /* VeTOSiOSSDK.framework */,
+			);
+			name = Products;
 			sourceTree = "<group>";
 		};
 		2BAF44C728AB969B009CF7BF /* VeTOSiOSSDKTests */ = {
 			isa = PBXGroup;
 			children = (
+				A71300000000000000000001 /* TOSTransferModelTests.m */,
+				A71300000000000000000003 /* TOSTransferCoreTests.m */,
+				A71300000000000000000005 /* TOSUploadFileV2Tests.m */,
+				A71300000000000000000007 /* TOSDownloadFileTests.m */,
+				A71300000000000000000009 /* TOSResumableCopyTests.m */,
+				A7130000000000000000000B /* TOSTransferLiveTests.m */,
+				A10000000000000000000013 /* TOSClientProtocolRegressionTests.m */,
+				C10000000000000000000011 /* TOSNetworkingChallengeTests.m */,
+				A10000000000000000000011 /* TOSURLProtocolStub.h */,
+				A10000000000000000000012 /* TOSURLProtocolStub.m */,
 				2BAF44C828AB969B009CF7BF /* VeTOSiOSSDKTests.m */,
 				2BAF44CF28AB96D0009CF7BF /* TOSBucketTests.m */,
 				2BAF44D328AB99FB009CF7BF /* TOSTestUtil.h */,
@@ -228,6 +279,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				A72400000000000000000005 /* PBXTargetDependency */,
 			);
 			name = "VeTOSiOSSDK-Example";
 			productName = "VeTOSiOSSDK-Example";
@@ -325,6 +377,12 @@
 			mainGroup = 2BA05A57287D1EB400C470CA;
 			productRefGroup = 2BA05A61287D1EB400C470CA /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = A72400000000000000000004 /* SDK Products */;
+					ProjectRef = A72400000000000000000003 /* VeTOSiOSSDK.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				2BA05A5F287D1EB400C470CA /* VeTOSiOSSDK-Example */,
@@ -334,6 +392,16 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		A72400000000000000000006 /* VeTOSiOSSDK.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = VeTOSiOSSDK.framework;
+			remoteRef = A72400000000000000000002 /* SDK product proxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		2BA05A5E287D1EB400C470CA /* Resources */ = {
@@ -403,6 +471,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A71300000000000000000002 /* TOSTransferModelTests.m in Sources */,
+				A71300000000000000000004 /* TOSTransferCoreTests.m in Sources */,
+				A71300000000000000000006 /* TOSUploadFileV2Tests.m in Sources */,
+				A71300000000000000000008 /* TOSDownloadFileTests.m in Sources */,
+				A7130000000000000000000A /* TOSResumableCopyTests.m in Sources */,
+				A7130000000000000000000C /* TOSTransferLiveTests.m in Sources */,
+				A10000000000000000000002 /* TOSClientProtocolRegressionTests.m in Sources */,
+				C10000000000000000000001 /* TOSNetworkingChallengeTests.m in Sources */,
+				A10000000000000000000001 /* TOSURLProtocolStub.m in Sources */,
 				2BAF44D028AB96D0009CF7BF /* TOSBucketTests.m in Sources */,
 				2B67AE062AE823CE001D1AAB /* TOSUtilityTests.m in Sources */,
 				2BCDE35D2C7EFD19007AEDBD /* TOSPutStreamTests.m in Sources */,
@@ -418,6 +495,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		A72400000000000000000005 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = VeTOSiOSSDK;
+			targetProxy = A72400000000000000000001 /* SDK target proxy */;
+		};
 		2BA05A7D287D1EB600C470CA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 2BA05A5F287D1EB400C470CA /* VeTOSiOSSDK-Example */;

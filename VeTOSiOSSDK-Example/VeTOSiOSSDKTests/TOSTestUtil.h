@@ -21,7 +21,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface TOSTestUtil : NSObject
 
-+ (void)cleanBucket:(NSString *)bucket withClient:(TOSClient *)client;
++ (NSString *)randomBucketNameWithPrefix:(NSString *)prefix testClass:(Class)testClass;
++ (nullable NSError *)createBucket:(NSString *)bucket withClient:(TOSClient *)client;
++ (void)cleanBucket:(nullable NSString *)bucket withClient:(nullable TOSClient *)client;
++ (nullable NSString *)createDeterministicFileAtPath:(NSString *)path
+                                                size:(int64_t)size
+                                                seed:(uint64_t)seed
+                                               error:(NSError **)error;
 + (NSString *)randomString:(int) n;
 
 @end

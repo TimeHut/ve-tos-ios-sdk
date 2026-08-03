@@ -69,6 +69,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy) TOSNetworkingDownloadProgressBlock downloadProgress;
 @property (nonatomic, copy) TOSNetworkingOnRecieveDataBlock onRecieveData;
 
+@property (nonatomic, strong, nullable) id tos_transferCancellation;
+@property (nonatomic, copy, nullable) NSError * _Nullable (^tos_responseValidator)(NSHTTPURLResponse *response);
+@property (nonatomic, copy, nullable) void (^tos_responseObserver)(NSHTTPURLResponse *response);
+@property (nonatomic, strong, nullable) NSError *tos_responseValidationError;
+
 @end
 
 NS_ASSUME_NONNULL_END

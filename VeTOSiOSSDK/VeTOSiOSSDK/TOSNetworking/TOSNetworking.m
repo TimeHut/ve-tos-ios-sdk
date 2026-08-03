@@ -19,6 +19,7 @@
 #import "TOSBolts.h"
 #import "TOSSynchronizedMutableDictionary.h"
 #import "NSDate+TOS.h"
+#import "../Transfer/TOSInput+TransferInternal.h"
 
 
 NSString *const TOSNetworkingErrorDomain = @"com.volcengine.TOSNetworkingErrorDomain";
@@ -45,7 +46,7 @@ static NSMutableArray *_globalUserAgentPrefixes = nil;
         if (!localeIdentifier) {
             localeIdentifier = TOSServiceConfigurationUnknown;
         }
-        _userAgent = [NSString stringWithFormat:@"tos-sdk-iOS/%@ %@/%@ %@", @"2.1.4", systemName, systemVersion, localeIdentifier];
+        _userAgent = [NSString stringWithFormat:@"tos-sdk-iOS/%@ %@/%@ %@", @"2.1.8", systemName, systemVersion, localeIdentifier];
     });
     
     NSMutableString *userAgent = [NSMutableString stringWithString:_userAgent];
@@ -227,10 +228,12 @@ static NSMutableArray *_globalUserAgentPrefixes = nil;
         }
         if (sessionDataTask) {
             [self.sessionDelagateManager setObject:delegate forKey:@(sessionDataTask.taskIdentifier)];
+            [(TOSTransferNetworkCancellation *)delegate.tos_transferCancellation registerTask:sessionDataTask];
             // 启动Task
             [sessionDataTask resume];
         } else {
             [self.sessionDelagateManager setObject:delegate forKey:@(sessionUploadTask.taskIdentifier)];
+            [(TOSTransferNetworkCancellation *)delegate.tos_transferCancellation registerTask:sessionUploadTask];
             // 启动Task
             [sessionUploadTask resume];
         }
@@ -280,6 +283,12 @@ static NSMutableArray *_globalUserAgentPrefixes = nil;
     if (!delegate) {
         return;
     }
+
+    if (delegate.tos_responseObserver && HTTPResponse) {
+        delegate.tos_responseObserver(HTTPResponse);
+    }
+
+    [(TOSTransferNetworkCancellation *)delegate.tos_transferCancellation unregisterTask:sessionTask];
     
     [self.sessionDelagateManager removeObjectForKey:@(sessionTask.taskIdentifier)];
     
@@ -288,6 +297,9 @@ static NSMutableArray *_globalUserAgentPrefixes = nil;
             delegate.error = error;
         }
         if (delegate.error) {
+            if (delegate.tos_responseValidationError) {
+                return [TOSTask taskWithError:delegate.tos_responseValidationError];
+            }
             if ([delegate.error.domain isEqualToString:NSURLErrorDomain] && delegate.error.code == NSURLErrorCancelled) {
                 return [TOSTask taskWithError:[NSError errorWithDomain:TOSClientErrorDomain code:TOSClientErrorCodeTaskCancelled userInfo:[error userInfo]]];
             } else {
@@ -302,8 +314,13 @@ static NSMutableArray *_globalUserAgentPrefixes = nil;
             if (HTTPResponse.statusCode == 0) {
                 return [TOSTask taskWithError:[NSError errorWithDomain:TOSClientErrorDomain code:TOSNetworkingErrorWithResponseCode0 userInfo:@{@"ErrorMessage" : @"Request failed, response code 0"}]];
             }
-            NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:delegate.httpRequestNotSuccessResponseBody options:0 error:NULL];
-            return [TOSTask taskWithError:[NSError errorWithDomain:TOSServerErrorDomain code:HTTPResponse.statusCode userInfo:dict]];
+            NSDictionary *userInfo =
+                [NSJSONSerialization JSONObjectWithData:delegate.httpRequestNotSuccessResponseBody
+                                                options:0
+                                                  error:NULL];
+            return [TOSTask taskWithError:[NSError errorWithDomain:TOSServerErrorDomain
+                                                               code:HTTPResponse.statusCode
+                                                           userInfo:userInfo]];
             
         }
         return task;
@@ -353,11 +370,22 @@ static NSMutableArray *_globalUserAgentPrefixes = nil;
     }
     
     NSHTTPURLResponse * httpResponse = (NSHTTPURLResponse *)response;
-    if (httpResponse.statusCode >= 200 && httpResponse.statusCode < 300) {
-        [delegate.responseParser consumeNetworkingResponse:httpResponse];
-    } else {
+    if (httpResponse.statusCode < 200 || httpResponse.statusCode >= 300) {
         delegate.isHttpRequestNotSuccessResponse = YES;
+        completionHandler(NSURLSessionResponseAllow);
+        return;
     }
+    if (delegate.tos_responseValidator) {
+        NSError *validationError = delegate.tos_responseValidator(httpResponse);
+        if (validationError) {
+            delegate.tos_responseValidationError = validationError;
+            delegate.error = validationError;
+            [dataTask cancel];
+            completionHandler(NSURLSessionResponseCancel);
+            return;
+        }
+    }
+    [delegate.responseParser consumeNetworkingResponse:httpResponse];
     completionHandler(NSURLSessionResponseAllow);
 }
 
@@ -393,28 +421,7 @@ static NSMutableArray *_globalUserAgentPrefixes = nil;
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential * __nullable credential))completionHandler
 {
-    if (!challenge) {
-        return;
-    }
-    
-    NSURLSessionAuthChallengeDisposition disposition = NSURLSessionAuthChallengePerformDefaultHandling;
-    NSURLCredential *credential = nil;
-    
-    NSString * host = [[task.currentRequest allHTTPHeaderFields] objectForKey:@"Host"];
-    if (!host) {
-        host = task.currentRequest.URL.host;
-    }
-    
-    if ([challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
-        NSURLCredential *crediential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
-        if (completionHandler) {
-            completionHandler(NSURLSessionAuthChallengeUseCredential, crediential);
-        }
-    } else {
-        disposition = NSURLSessionAuthChallengePerformDefaultHandling;
-    }
-    // Uses the default evaluation for other challenges.
-    completionHandler(disposition,credential);
+    completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
 }
 
 @end

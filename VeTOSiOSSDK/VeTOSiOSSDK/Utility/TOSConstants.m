@@ -74,6 +74,27 @@ TOSUploadEventType const TOSUploadEventUploadPartAborted = 5; // 上传段中止
 TOSUploadEventType const TOSUploadEventCompleteMultipartUploadSucceed = 6; // 合并段成功
 TOSUploadEventType const TOSUploadEventCompleteMultipartUploadFailed = 7; // 合并段失败
 
+TOSDownloadEventType const TOSDownloadEventCreateTempFileSucceed = 1; // 创建临时文件成功
+TOSDownloadEventType const TOSDownloadEventCreateTempFileFailed = 2; // 创建临时文件失败
+TOSDownloadEventType const TOSDownloadEventDownloadPartSucceed = 3; // 下载段成功
+TOSDownloadEventType const TOSDownloadEventDownloadPartFailed = 4; // 下载段失败
+TOSDownloadEventType const TOSDownloadEventDownloadPartAborted = 5; // 下载段中止
+TOSDownloadEventType const TOSDownloadEventRenameTempFileSucceed = 6; // 重命名临时文件成功
+TOSDownloadEventType const TOSDownloadEventRenameTempFileFailed = 7; // 重命名临时文件失败
+
+TOSCopyEventType const TOSCopyEventCreateMultipartUploadSucceed = 1; // 创建分段复制任务成功
+TOSCopyEventType const TOSCopyEventCreateMultipartUploadFailed = 2; // 创建分段复制任务失败
+TOSCopyEventType const TOSCopyEventUploadPartCopySucceed = 3; // 复制段成功
+TOSCopyEventType const TOSCopyEventUploadPartCopyFailed = 4; // 复制段失败
+TOSCopyEventType const TOSCopyEventUploadPartCopyAborted = 5; // 复制段中止
+TOSCopyEventType const TOSCopyEventCompleteMultipartUploadSucceed = 6; // 合并段成功
+TOSCopyEventType const TOSCopyEventCompleteMultipartUploadFailed = 7; // 合并段失败
+
+TOSDataTransferType const TOSDataTransferStarted = 1;
+TOSDataTransferType const TOSDataTransferRW = 2;
+TOSDataTransferType const TOSDataTransferSucceed = 3;
+TOSDataTransferType const TOSDataTransferFailed = 4;
+
 NSString * const TOSHTTPQueryProcess = @"x-tos-process";
 NSString * const TOSProcessSaveAsObject = @"x-tos-save-object";
 NSString * const TOSProcessSaveAsBucket = @"x-tos-save-bucket";

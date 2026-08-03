@@ -67,6 +67,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (TOSTask *)getObjectToFile:(TOSGetObjectToFileInput *)request;
 - (TOSTask *)getObjectAcl:(TOSGetObjectACLInput *)request;
 - (TOSTask *)headObject:(TOSHeadObjectInput *)request;
+- (TOSTask *)downloadFile:(TOSDownloadFileInput *)request;
+- (TOSTask *)resumableCopyObject:(TOSResumableCopyObjectInput *)request;
 - (TOSTask *)appendObject:(TOSAppendObjectInput *) request;
 - (TOSTask *)listObjects:(TOSListObjectsInput *)request;
 - (TOSTask *)listObjectVersions:(TOSListObjectVersionsInput *)request;

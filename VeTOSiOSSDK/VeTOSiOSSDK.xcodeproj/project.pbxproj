@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A71300000000000000000007 /* TOSTransferOperation.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000006 /* TOSTransferOperation.m */; };
+		A7130000000000000000000B /* TOSTransferCheckpoint.m in Sources */ = {isa = PBXBuildFile; fileRef = A7130000000000000000000A /* TOSTransferCheckpoint.m */; };
+		A7130000000000000000000E /* TOSTransferIO.m in Sources */ = {isa = PBXBuildFile; fileRef = A7130000000000000000000D /* TOSTransferIO.m */; };
+		A71300000000000000000011 /* TOSInput+TransferInternal.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000010 /* TOSInput+TransferInternal.m */; };
+		A71300000000000000000014 /* TOSUploadFileV2Operation.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000013 /* TOSUploadFileV2Operation.m */; };
+		A71300000000000000000017 /* TOSDownloadFileOperation.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000016 /* TOSDownloadFileOperation.m */; };
+		A7130000000000000000001A /* TOSResumableCopyOperation.m in Sources */ = {isa = PBXBuildFile; fileRef = A71300000000000000000019 /* TOSResumableCopyOperation.m */; };
 		2B2BF86128E3FB2D0028B06D /* aos_crc64.h in Headers */ = {isa = PBXBuildFile; fileRef = 2B2BF85F28E3FB2D0028B06D /* aos_crc64.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		2B2BF86228E3FB2D0028B06D /* aos_crc64.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B2BF86028E3FB2D0028B06D /* aos_crc64.m */; };
 		2B490804289C2DFF006AEA3C /* TOSModel.h in Headers */ = {isa = PBXBuildFile; fileRef = 2B490802289C2DFF006AEA3C /* TOSModel.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -71,6 +78,20 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A71300000000000000000005 /* TOSTransferOperation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TOSTransferOperation.h; sourceTree = "<group>"; };
+		A71300000000000000000006 /* TOSTransferOperation.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSTransferOperation.m; sourceTree = "<group>"; };
+		A71300000000000000000009 /* TOSTransferCheckpoint.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TOSTransferCheckpoint.h; sourceTree = "<group>"; };
+		A7130000000000000000000A /* TOSTransferCheckpoint.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSTransferCheckpoint.m; sourceTree = "<group>"; };
+		A7130000000000000000000C /* TOSTransferIO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TOSTransferIO.h; sourceTree = "<group>"; };
+		A7130000000000000000000D /* TOSTransferIO.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSTransferIO.m; sourceTree = "<group>"; };
+		A7130000000000000000000F /* TOSInput+TransferInternal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "TOSInput+TransferInternal.h"; sourceTree = "<group>"; };
+		A71300000000000000000010 /* TOSInput+TransferInternal.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "TOSInput+TransferInternal.m"; sourceTree = "<group>"; };
+		A71300000000000000000012 /* TOSUploadFileV2Operation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TOSUploadFileV2Operation.h; sourceTree = "<group>"; };
+		A71300000000000000000013 /* TOSUploadFileV2Operation.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSUploadFileV2Operation.m; sourceTree = "<group>"; };
+		A71300000000000000000015 /* TOSDownloadFileOperation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TOSDownloadFileOperation.h; sourceTree = "<group>"; };
+		A71300000000000000000016 /* TOSDownloadFileOperation.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSDownloadFileOperation.m; sourceTree = "<group>"; };
+		A71300000000000000000018 /* TOSResumableCopyOperation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TOSResumableCopyOperation.h; sourceTree = "<group>"; };
+		A71300000000000000000019 /* TOSResumableCopyOperation.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TOSResumableCopyOperation.m; sourceTree = "<group>"; };
 		2B2BF85F28E3FB2D0028B06D /* aos_crc64.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = aos_crc64.h; sourceTree = "<group>"; };
 		2B2BF86028E3FB2D0028B06D /* aos_crc64.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = aos_crc64.m; sourceTree = "<group>"; };
 		2B490802289C2DFF006AEA3C /* TOSModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TOSModel.h; sourceTree = "<group>"; };
@@ -146,6 +167,27 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		A71300000000000000000008 /* Transfer */ = {
+			isa = PBXGroup;
+			children = (
+				A71300000000000000000005 /* TOSTransferOperation.h */,
+				A71300000000000000000006 /* TOSTransferOperation.m */,
+				A71300000000000000000009 /* TOSTransferCheckpoint.h */,
+				A7130000000000000000000A /* TOSTransferCheckpoint.m */,
+				A7130000000000000000000C /* TOSTransferIO.h */,
+				A7130000000000000000000D /* TOSTransferIO.m */,
+				A7130000000000000000000F /* TOSInput+TransferInternal.h */,
+				A71300000000000000000010 /* TOSInput+TransferInternal.m */,
+				A71300000000000000000012 /* TOSUploadFileV2Operation.h */,
+				A71300000000000000000013 /* TOSUploadFileV2Operation.m */,
+				A71300000000000000000015 /* TOSDownloadFileOperation.h */,
+				A71300000000000000000016 /* TOSDownloadFileOperation.m */,
+				A71300000000000000000018 /* TOSResumableCopyOperation.h */,
+				A71300000000000000000019 /* TOSResumableCopyOperation.m */,
+			);
+			path = Transfer;
+			sourceTree = "<group>";
+		};
 		2B49080A289C311D006AEA3C /* TOSNetworking */ = {
 			isa = PBXGroup;
 			children = (
@@ -183,6 +225,7 @@
 		2BA05AA4287D1EE600C470CA /* VeTOSiOSSDK */ = {
 			isa = PBXGroup;
 			children = (
+				A71300000000000000000008 /* Transfer */,
 				2B49080A289C311D006AEA3C /* TOSNetworking */,
 				2BEEFC8F288923FC00AD840C /* TOSTask */,
 				2BBD8CC728929A0600E9AAD1 /* Request */,
@@ -390,6 +433,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A71300000000000000000007 /* TOSTransferOperation.m in Sources */,
+				A7130000000000000000000B /* TOSTransferCheckpoint.m in Sources */,
+				A7130000000000000000000E /* TOSTransferIO.m in Sources */,
+				A71300000000000000000011 /* TOSInput+TransferInternal.m in Sources */,
+				A71300000000000000000014 /* TOSUploadFileV2Operation.m in Sources */,
+				A71300000000000000000017 /* TOSDownloadFileOperation.m in Sources */,
+				A7130000000000000000001A /* TOSResumableCopyOperation.m in Sources */,
 				2BEEFC8E2889014E00AD840C /* TOSClientConfiguration.m in Sources */,
 				2B490805289C2DFF006AEA3C /* TOSModel.m in Sources */,
 				2BEEFCB528893FAE00AD840C /* TOSNetworkingRequestDelegate.m in Sources */,
@@ -560,7 +610,7 @@
 					"@loader_path/Frameworks",
 				);
 				MACH_O_TYPE = staticlib;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.1.8;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_LDFLAGS = "-all_load";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ve.tos.VeTOSiOSSDK;
@@ -591,7 +641,7 @@
 					"@loader_path/Frameworks",
 				);
 				MACH_O_TYPE = staticlib;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.1.8;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_LDFLAGS = "-all_load";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ve.tos.VeTOSiOSSDK;
