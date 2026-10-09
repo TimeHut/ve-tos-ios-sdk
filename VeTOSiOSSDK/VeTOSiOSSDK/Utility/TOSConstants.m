@@ -17,7 +17,7 @@
 #import "TOSConstants.h"
 
 const int64_t TOSDefaultPartSize = (int64_t)20 * 1024 * 1024;
-const int64_t TOSMinPartSize = (int64_t)5 * 1024 * 1024;
+const int64_t TOSMinPartSize = (int64_t)4 * 1024 * 1024;
 const int64_t TOSMaxPartSize = (int64_t)5 * 1024 * 1024 * 1024;
 const int TOSMinTaskNum = 1;
 const int TOSMaxTaskNum = 5;
