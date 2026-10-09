@@ -1,0 +1,8 @@
+Pod version: 2.1.8-timehut.1
+Minimum iOS version: 15.0
+Source commit: eba4df55215df149ebfc9defd42deb160855106f
+TOSConstants.m SHA-256: 123197a32aaf873b225a3b1693a59d78027c200a9585a0033e8936df3938fc28  /Users/timehut/Desktop/ve-tos-ios-sdk/VeTOSiOSSDK/VeTOSiOSSDK/Utility/TOSConstants.m
+Xcode 27.1
+Build version 27A9275
+Device architectures: arm64
+Simulator architectures: x86_64 arm64

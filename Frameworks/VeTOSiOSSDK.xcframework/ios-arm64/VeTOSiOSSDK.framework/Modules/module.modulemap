@@ -1,0 +1,6 @@
+framework module VeTOSiOSSDK {
+  umbrella header "VeTOSiOSSDK.h"
+  export *
+
+  module * { export * }
+}
